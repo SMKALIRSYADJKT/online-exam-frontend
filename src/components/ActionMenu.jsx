@@ -43,6 +43,10 @@ export default function ActionMenu({ itemId, onEdit, menu, type, onShowStudents,
     navigate(`/student/submitted-exam/${itemId}`);
   };
 
+  const handleScoring = (itemId) => {
+    navigate(`/teacher-exam/submission/${itemId}`);
+  };
+
   return (
     <Menu as="div" className="relative inline-block text-left">
       <MenuButton className="p-2 hover:bg-gray-100 rounded-full">
@@ -51,7 +55,7 @@ export default function ActionMenu({ itemId, onEdit, menu, type, onShowStudents,
 
       <MenuItems className="absolute right-0 z-10 mt-2 w-28 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
         <div className="py-1">
-          {menu !== "studentExam" && menu !== "submittedExam" && type !== "SISWA" &&
+          {menu !== "studentExam" && menu !== "submittedExam" && menu !== "teacherExamSubmission" && type !== "SISWA" &&
             <MenuItem>
               {({ active }) => (
                 <button
@@ -134,6 +138,35 @@ export default function ActionMenu({ itemId, onEdit, menu, type, onShowStudents,
                   onClick={handleViewDetail}
                 >
                   Lihat Detail
+                </button>
+              )}
+            </MenuItem>
+          )}
+
+          {menu === "teacherExam" && (
+            <MenuItem>
+              {({ active }) => (
+                <button
+                  className={`${active ? 'bg-gray-100' : ''} w-full px-4 py-2 text-sm text-gray-700`}
+                  onClick={() => onShowStudents && onShowStudents(itemId)}
+                >
+                  List Students
+                </button>
+              )}
+            </MenuItem>
+          )}
+
+          {/* Scoring (di halaman /teacher-exam/:examId/students) */}
+          {menu === "teacherExamSubmission" && (
+            <MenuItem>
+              {({ active }) => (
+                <button
+                  className={`${
+                    active ? "bg-gray-100" : ""
+                  } w-full px-4 py-2 text-sm text-gray-700`}
+                  onClick={() => handleScoring(itemId)}
+                >
+                  Scoring
                 </button>
               )}
             </MenuItem>

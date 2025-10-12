@@ -12,6 +12,9 @@ import StudentExam from "./pages/StudentExam";
 import SubmittedExam from "./pages/SubmittedExam";
 import SubmittedExamDetail from "./pages/SubmittedExamDetail";
 import StudentExamPage from "./pages/StudentExamPage";
+import TeacherExam from "./pages/TeacherExam";
+import TeacherExamStudents from "./pages/TeacherExamStudents";
+import TeacherExamScoring from "./pages/TeacherExamScoring";
 import Questionnaire from "./pages/Questionnaire";
 import Subject from "./pages/Subject";
 
@@ -94,6 +97,33 @@ function App() {
           element={
             <ProtectedRoute>
               <SubmittedExamDetail />  
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/teacher-exam"
+          element={
+            <ProtectedRoute>
+              <TeacherExam />  
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/teacher-exam/:examId/students"
+          element={
+            <ProtectedRoute>
+              <TeacherExamStudents />  
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/teacher-exam/submission/:submissionId"
+          element={
+            <ProtectedRoute>
+              <TeacherExamScoring />  
             </ProtectedRoute>
           }
         />

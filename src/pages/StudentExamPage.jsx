@@ -1,40 +1,140 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 import Swal from "sweetalert2";
 
+/* ---------------- Helper ---------------- */
+const formatTime = (seconds) => {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}:${s < 10 ? "0" : ""}${s}`;
+};
+
 const StudentExamPage = () => {
   const { examId } = useParams();
   const navigate = useNavigate();
-  const [started, setStarted] = useState(false);
-  const [sessionId, setSessionId] = useState(null);
 
+  // Exam states
   const [exam, setExam] = useState(null);
-  const [timeLeft, setTimeLeft] = useState(0); // dalam detik
   const [questions, setQuestions] = useState([]);
   const [studentAnswers, setStudentAnswers] = useState({});
 
+  // Session & status
+  const [started, setStarted] = useState(false);
+  const [sessionId, setSessionId] = useState(null);
+  const [timeLeft, setTimeLeft] = useState(0);
+  const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const submittingRef = useRef(false);
 
-  // Sync state ke ref
+  // Refs
+  const submittingRef = useRef(false);
+  const mediaRecorderRef = useRef(null);
+  const chunksRef = useRef([]);
+
   useEffect(() => {
     submittingRef.current = submitting;
   }, [submitting]);
 
-  const mediaRecorderRef = useRef(null);
-  const chunksRef = useRef([]);
+  /* ---------------- Fetch Exam ---------------- */
+  useEffect(() => {
+    const fetchExam = async () => {
+      try {
+        const token = localStorage.getItem("token");
 
-  const startRecording = async (sessionId) => {
-    if (!sessionId) {
-      console.error("❌ SessionId kosong, tidak bisa mulai rekaman");
-      return;
-    }
+        const { data: examData } = await axios.get(
+          `http://localhost:3000/api/exams/${examId}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
 
+        setExam(examData);
+        setTimeLeft(Number(examData.duration) * 60);
+
+        const { data: qRes } = await axios.get(
+          `http://localhost:3000/api/exams/${examId}/questions`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        setQuestions(qRes.questions || []);
+      } catch (err) {
+        console.error("Gagal ambil exam:", err);
+        Swal.fire("Error", "Gagal memuat ujian", "error");
+        navigate("/student/exam");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchExam();
+  }, [examId, navigate]);
+
+  /* ---------------- Timer ---------------- */
+  useEffect(() => {
+    if (!exam) return;
+    const timer = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          Swal.fire("Waktu Habis!", "Ujian sudah selesai", "warning");
+          navigate("/student/exam");
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [exam, navigate]);
+
+  /* ---------------- Proctoring ---------------- */
+  useEffect(() => {
+    if (!started) return;
+
+    const token = localStorage.getItem("token");
+    const showWarning = async (msg) => {
+      Swal.fire("Peringatan!", msg, "warning");
+      if (sessionId && !submitting) {
+        await axios.post(
+          `http://localhost:3000/api/exam-sessions/${sessionId}/tab-switch`,
+          {},
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+      }
+    };
+
+    const handleFullscreenChange = () => {
+      if (!document.fullscreenElement && !submittingRef.current) {
+        showWarning("Anda keluar dari fullscreen!");
+      }
+    };
+    const handleBlur = () => showWarning("Jangan tinggalkan halaman ujian!");
+    const handleVisibilityChange = () => {
+      if (document.hidden && !submittingRef.current) {
+        showWarning("Anda tidak boleh berpindah tab!");
+      }
+    };
+    const handleBeforeUnload = (e) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    window.addEventListener("blur", handleBlur);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+      window.removeEventListener("blur", handleBlur);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [started, sessionId]);
+
+  /* ---------------- Recording ---------------- */
+  const startRecording = useCallback(async (sessionId) => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: true,
-        audio: true, // ikut rekam audio
+        audio: true,
       });
 
       const mediaRecorder = new MediaRecorder(stream, { mimeType: "video/webm" });
@@ -42,9 +142,7 @@ const StudentExamPage = () => {
       chunksRef.current = [];
 
       mediaRecorder.ondataavailable = (e) => {
-        if (e.data.size > 0) {
-          chunksRef.current.push(e.data);
-        }
+        if (e.data.size > 0) chunksRef.current.push(e.data);
       };
 
       mediaRecorder.onstop = async () => {
@@ -73,139 +171,38 @@ const StudentExamPage = () => {
     } catch (err) {
       console.error("❌ Gagal akses kamera:", err);
     }
-  };
+  }, []);
 
+  /* ---------------- Handlers ---------------- */
   const handleAnswerChange = (questionId, answer) => {
-    setStudentAnswers((prev) => ({
-      ...prev,
-      [questionId]: answer,
-    }));
+    setStudentAnswers((prev) => ({ ...prev, [questionId]: answer }));
   };
 
-  // Ambil data exam & pertanyaan
-  useEffect(() => {
-    const fetchExam = async () => {
-      try {
-        const res = await axios.get(`http://localhost:3000/api/exams/${examId}`, {
-          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-        });
-
-        const examData = res.data;
-        setExam(examData);
-
-        const durationInMinutes = Number(examData.duration);
-        setTimeLeft(durationInMinutes * 60);
-
-        const qRes = await axios.get(`http://localhost:3000/api/exams/${examId}/questions`, {
-          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-        });
-        setQuestions(qRes.data.questions);
-      } catch (err) {
-        console.error("Gagal ambil exam:", err);
-        Swal.fire("Error", "Gagal memuat ujian", "error");
-        navigate("/student/exam");
-      }
-    };
-
-    fetchExam();
-  }, [examId, navigate]);
-
-  // Timer countdown
-  useEffect(() => {
-    if (!exam) return;
-
-    const timer = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          Swal.fire("Waktu Habis!", "Ujian sudah selesai", "warning");
-          navigate("/student/exam");
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [exam, navigate]);
-
-  // Warning saat keluar tab / fullscreen
-  useEffect(() => {
-    if (!started) return;
-
-    const showWarning = async (msg) => {
-      Swal.fire("Peringatan!", msg, "warning");
-      if (sessionId && !submitting) {
-        await axios.post(
-          `http://localhost:3000/api/exam-sessions/${sessionId}/tab-switch`,
-          {},
-          { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
-        );
-      }
-    };
-
-    const handleFullscreenChange = () => {
-      if (!document.fullscreenElement && !submittingRef.current) {
-        showWarning("Anda keluar dari fullscreen!");
-      }
-    };
-
-    const handleBlur = () => {
-      showWarning("Jangan tinggalkan halaman ujian!");
-    };
-
-    const handleVisibilityChange = () => {
-      if (document.hidden && !submittingRef.current) {
-        showWarning("Anda tidak boleh berpindah tab!");
-      }
-    };
-
-    const handleBeforeUnload = (e) => {
-      e.preventDefault();
-      e.returnValue = "";
-    };
-
-    document.addEventListener("fullscreenchange", handleFullscreenChange);
-    window.addEventListener("blur", handleBlur);
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    window.addEventListener("beforeunload", handleBeforeUnload);
-
-    return () => {
-      document.removeEventListener("fullscreenchange", handleFullscreenChange);
-      window.removeEventListener("blur", handleBlur);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-      window.removeEventListener("beforeunload", handleBeforeUnload);
-    };
-  }, [started, sessionId]);
-
-  // Start Exam + buat session
   const handleStart = async () => {
     try {
-      const res = await axios.post(
+      const { data } = await axios.post(
         `http://localhost:3000/api/exam-sessions/${examId}/start`,
         {},
         { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
       );
-      
-      const newSessionId = res.data.id;
-      setSessionId(newSessionId);
 
+      setSessionId(data.id);
       setStarted(true);
+
       if (document.documentElement.requestFullscreen) {
-        document.documentElement.requestFullscreen();
+        await document.documentElement.requestFullscreen();
       }
 
-      startRecording(newSessionId);
+      startRecording(data.id);
     } catch (err) {
       console.error("Gagal mulai ujian:", err);
       Swal.fire("Error", "Tidak bisa memulai sesi ujian", "error");
     }
   };
 
-  // Submit Exam
   const handleSubmit = async () => {
     try {
-      setSubmitting(true); 
+      setSubmitting(true);
 
       const payload = {
         answers: Object.entries(studentAnswers).map(([question_id, answer]) => ({
@@ -228,12 +225,7 @@ const StudentExamPage = () => {
         );
       }
 
-      // ✅ Exit fullscreen setelah submit
-      if (document.fullscreenElement) {
-        await document.exitFullscreen();
-      }
-
-      // ⏹ stop recording
+      if (document.fullscreenElement) await document.exitFullscreen();
       if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
         mediaRecorderRef.current.stop();
       }
@@ -248,14 +240,8 @@ const StudentExamPage = () => {
     }
   };
 
-  // Format waktu
-  const formatTime = (seconds) => {
-    const m = Math.floor(seconds / 60);
-    const s = seconds % 60;
-    return `${m}:${s < 10 ? "0" : ""}${s}`;
-  };
-
-  if (!exam) return <p className="p-6">Loading...</p>;
+  /* ---------------- Render ---------------- */
+  if (loading) return <p className="p-6">Loading...</p>;
 
   if (!started) {
     return (
@@ -274,48 +260,53 @@ const StudentExamPage = () => {
     <div className="w-screen h-screen bg-gray-100 flex flex-col">
       {/* Header ujian */}
       <div className="flex justify-between items-center p-4 bg-white shadow">
-        <h1 className="text-lg font-bold">{exam.title}</h1>
+        <h1 className="text-lg font-bold">{exam?.title}</h1>
         <div className="text-red-600 font-bold">⏳ {formatTime(timeLeft)}</div>
       </div>
 
       {/* Daftar soal */}
       <div className="flex-1 overflow-y-auto p-6">
         {questions.length > 0 ? (
-          questions.map((q, index) => (
-            <div key={q.id} className="mb-6 p-4 bg-white rounded shadow">
-              <p className="font-semibold">
-                {index + 1}. {q.question}
-              </p>
-              {q.type === "multiple_choice" ? (
-                <div className="mt-2 space-y-2">
-                  {q.options?.map((opt, i) => (
-                    <label key={i} className="block">
-                      <input
-                        type="radio"
-                        name={`q-${q.id}`}
-                        value={opt}
-                        onChange={() => handleAnswerChange(q.id, opt)}
-                        className="mr-2"
-                        checked={studentAnswers[q.id] === opt}
-                      />
-                      {opt}
-                    </label>
-                  ))}
-                </div>
-              ) : (
-                <div className="mt-2">
+          [...questions]
+            .sort((a, b) =>
+              a.type === b.type ? (a.index || 0) - (b.index || 0) : a.type === "multiple_choice" ? -1 : 1
+            )
+            .map((q, index) => (
+              <div key={q.id} className="mb-6 p-4 bg-white rounded shadow">
+                <p className="font-semibold">{index + 1}. {q.question}</p>
+
+                {q.type === "multiple_choice" ? (
+                  <div className="mt-2 space-y-2">
+                    {q.options?.map((opt, i) => (
+                      <label key={i} className="block">
+                        <input
+                          type="radio"
+                          name={`q-${q.id}`}
+                          value={opt.value}
+                          onChange={() => handleAnswerChange(q.id, opt.value)}
+                          className="mr-2"
+                          checked={studentAnswers[q.id] === opt.value}
+                        />
+                        {opt.type === "text" ? (
+                          opt.value
+                        ) : (
+                          <img src={opt.value} alt={`option-${i}`} className="h-16" />
+                        )}
+                      </label>
+                    ))}
+                  </div>
+                ) : (
                   <textarea
                     name={`q-${q.id}`}
-                    className="w-full border rounded p-2"
+                    className="w-full border rounded p-2 mt-2"
                     placeholder="Tulis jawaban Anda di sini..."
                     rows={4}
                     value={studentAnswers[q.id] || ""}
                     onChange={(e) => handleAnswerChange(q.id, e.target.value)}
                   />
-                </div>
-              )}
-            </div>
-          ))
+                )}
+              </div>
+            ))
         ) : (
           <p>Tidak ada soal tersedia</p>
         )}
@@ -325,9 +316,10 @@ const StudentExamPage = () => {
       <div className="p-4 bg-white shadow flex justify-end">
         <button
           onClick={handleSubmit}
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+          disabled={submitting}
+          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50"
         >
-          Submit Exam
+          {submitting ? "Submitting..." : "Submit Exam"}
         </button>
       </div>
     </div>

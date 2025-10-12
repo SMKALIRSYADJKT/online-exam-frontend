@@ -20,7 +20,7 @@ import QuestionnaireTable from "../components/Questionnaire/QuestionnaireTable";
 const MySwal = withReactContent(Swal);
 
 const Questionnaire = () => {
-  const { examId } = useParams(); // ambil id ujian dari url
+  const { examId } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const [questionnaires, setQuestionnaires] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -35,29 +35,48 @@ const Questionnaire = () => {
   const page = Number(searchParams.get("page")) || 1;
   const pageSize = 10;
 
-  // Form data untuk tambah/edit pertanyaan
   const [formData, setFormData] = useState({
     id: "",
     exam_id: examId,
     question: "",
-    options: "",
+    options: [], // format baru: [{ type: "text", value: "..." }]
     answer: "",
-    type: "multiple-choice",
+    type: "multiple_choice",
+    index: 0,
     created_at: new Date().toISOString(),
     updated_at: "",
   });
 
-  // input handler
+  // input handler umum
   const handleInputChange = (e) => {
     const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
 
-		setFormData((prev) => ({
-			...prev,
-			[name]:
-				name === 'options'
-					? value.split(',').map((opt) => opt.trim()) // ubah string jadi array
-					: value,
-		}));
+  /* ---------------- Option Handlers ---------------- */
+  const addOption = () => {
+    setFormData((prev) => ({
+      ...prev,
+      options: [...prev.options, { type: "text", value: "" }],
+    }));
+  };
+
+  const updateOption = (index, field, value) => {
+    setFormData((prev) => {
+      const newOptions = [...prev.options];
+      newOptions[index][field] = value;
+      return { ...prev, options: newOptions };
+    });
+  };
+
+  const removeOption = (index) => {
+    setFormData((prev) => {
+      const newOptions = prev.options.filter((_, i) => i !== index);
+      return { ...prev, options: newOptions };
+    });
   };
 
   const fetchQuestionnaires = async () => {
@@ -115,9 +134,10 @@ const Questionnaire = () => {
       setFormData({
         exam_id: examId,
         question: "",
-        options: "",
+        options: [],
         answer: "",
         type: "",
+        index: 0,
         created_at: new Date().toISOString(),
       });
 
@@ -166,6 +186,7 @@ const Questionnaire = () => {
           options: q.options,
           answer: q.answer,
           type: q.type,
+          index: q.index,
           created_at: q.created_at,
         });
         setSelectedId(q.id);
@@ -241,11 +262,7 @@ const Questionnaire = () => {
 
         {/* Modal Tambah */}
         <Transition appear show={showModal} as={Fragment}>
-          <Dialog
-            as="div"
-            className="relative z-10"
-            onClose={() => setShowModal(false)}
-          >
+          <Dialog as="div" className="relative z-10" onClose={() => setShowModal(false)}>
             <TransitionChild
               as={Fragment}
               enter="ease-out duration-300"
@@ -270,18 +287,13 @@ const Questionnaire = () => {
                   leaveTo="opacity-0 scale-95"
                 >
                   <DialogPanel className="w-full max-w-md transform overflow-visible rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
-                    <DialogTitle
-                      as="h3"
-                      className="text-lg font-medium leading-6 text-gray-900"
-                    >
+                    <DialogTitle as="h3" className="text-lg font-medium leading-6 text-gray-900">
                       Tambah Pertanyaan Baru
                     </DialogTitle>
 
                     <div className="mt-4 space-y-4">
                       <div>
-                        <label className="block text-sm font-medium">
-                          Pertanyaan
-                        </label>
+                        <label className="block text-sm font-medium">Pertanyaan</label>
                         <input
                           type="text"
                           name="question"
@@ -292,41 +304,86 @@ const Questionnaire = () => {
                       </div>
 
                       {/* Pilih Tipe Pertanyaan */}
-											<div>
-												<label className="block text-sm font-medium">Tipe</label>
-												<select
-													name="type"
-													value={formData.type}
-													onChange={handleInputChange}
-													className="mt-1 w-full border border-2 border-gray-300 px-3 py-2 rounded bg-white"
-												>
-													<option value="">-- Pilih Tipe --</option>
-													<option value="multiple_choice">Multiple Choice</option>
-													<option value="essay">Essay</option>
-												</select>
-											</div>
-
                       <div>
-                        <label className="block text-sm font-medium">
-                          Pilihan Jawaban (pisahkan dengan koma)
-                        </label>
-                        <input
-                          type="text"
-                          name="options"
-                          value={formData.options}
+                        <label className="block text-sm font-medium">Tipe</label>
+                        <select
+                          name="type"
+                          value={formData.type}
                           onChange={handleInputChange}
-                          className="mt-1 w-full border border-2 border-gray-300 px-3 py-2 rounded"
-                        />
+                          className="mt-1 w-full border border-2 border-gray-300 px-3 py-2 rounded bg-white"
+                        >
+                          <option value="">-- Pilih Tipe --</option>
+                          <option value="multiple_choice">Multiple Choice</option>
+                          <option value="essay">Essay</option>
+                        </select>
                       </div>
 
+                      {/* Pilihan Jawaban */}
+                      {formData.type === "multiple_choice" && (
+                        <div>
+                          <label className="block text-sm font-medium">Pilihan Jawaban</label>
+                          <div className="space-y-3 mt-2">
+                            {formData.options.map((opt, idx) => (
+                              <div key={idx} className="flex items-center gap-2">
+                                <select
+                                  value={opt.type}
+                                  onChange={(e) => updateOption(idx, "type", e.target.value)}
+                                  className="border rounded px-2 py-1"
+                                >
+                                  <option value="text">Text</option>
+                                  <option value="image">Image</option>
+                                </select>
+                                {opt.type === "text" ? (
+                                  <input
+                                    type="text"
+                                    value={opt.value}
+                                    onChange={(e) => updateOption(idx, "value", e.target.value)}
+                                    placeholder={`Opsi ${idx + 1}`}
+                                    className="flex-1 border rounded px-2 py-1"
+                                  />
+                                ) : (
+                                  <input
+                                    type="text"
+                                    value={opt.value}
+                                    onChange={(e) => updateOption(idx, "value", e.target.value)}
+                                    placeholder="URL gambar"
+                                    className="flex-1 border rounded px-2 py-1"
+                                  />
+                                )}
+                                <button
+                                  onClick={() => removeOption(idx)}
+                                  className="px-2 py-1 bg-red-500 text-white rounded"
+                                >
+                                  ✕
+                                </button>
+                              </div>
+                            ))}
+                            <button
+                              onClick={addOption}
+                              className="px-3 py-1 bg-green-500 text-white rounded text-sm"
+                            >
+                              + Tambah Opsi
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
                       <div>
-                        <label className="block text-sm font-medium">
-                          Jawaban Benar
-                        </label>
+                        <label className="block text-sm font-medium">Jawaban Benar</label>
                         <input
                           type="text"
                           name="answer"
                           value={formData.answer}
+                          onChange={handleInputChange}
+                          className="mt-1 w-full border border-2 border-gray-300 px-3 py-2 rounded"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium">No Urut</label>
+                        <input
+                          type="number"
+                          name="index"
+                          value={formData.index}
                           onChange={handleInputChange}
                           className="mt-1 w-full border border-2 border-gray-300 px-3 py-2 rounded"
                         />
@@ -356,7 +413,6 @@ const Questionnaire = () => {
 
         {/* Table */}
         <SearchBar value={search} />
-
         {loading ? (
           <p className="mt-4">Loading...</p>
         ) : (
