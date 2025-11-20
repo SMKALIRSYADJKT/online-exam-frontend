@@ -84,7 +84,7 @@ function App() {
         />
 
         <Route
-          path="/student/exam-submissions"
+          path="/exam-submissions"
           element={
             <ProtectedRoute>
               <SubmittedExam />  
@@ -93,7 +93,7 @@ function App() {
         />
 
         <Route
-          path="/student/submitted-exam/:submissionId"
+          path="/exam-submissions/:submissionId"
           element={
             <ProtectedRoute>
               <SubmittedExamDetail />  

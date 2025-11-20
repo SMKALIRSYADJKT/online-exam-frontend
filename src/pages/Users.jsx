@@ -1,17 +1,25 @@
-import { useState, useEffect, Fragment } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import Sidebar from '../components/Sidebar';
-import axios from 'axios';
-import SearchBar from '../components/Users/SearchBar';
-import UserTable from '../components/Users/UserTable';
-import Pagination from '../components/Paginate';
-import RoleSelect from '../components/DropdownRole';
-import Swal from 'sweetalert2';
-import withReactContent from 'sweetalert2-react-content';
-import { Dialog, DialogPanel, DialogTitle, Transition, TransitionChild } from '@headlessui/react';
-import { jwtDecode } from 'jwt-decode';
-import ClassSelect from '../components/DropdownClass';
-import GenderSelect from '../components/DropdownGender';
+import { useState, useEffect, Fragment } from "react";
+import { useSearchParams } from "react-router-dom";
+import { FaUsers } from "react-icons/fa";
+import Sidebar from "../components/Sidebar";
+import axios from "axios";
+import SearchBar from "../components/Users/SearchBar";
+import UserTable from "../components/Users/UserTable";
+import Pagination from "../components/Paginate";
+import RoleSelect from "../components/DropdownRole";
+import ClassSelect from "../components/DropdownClass";
+import GenderSelect from "../components/DropdownGender";
+import Swal from "sweetalert2";
+import withReactContent from "sweetalert2-react-content";
+import {
+  Dialog,
+  DialogPanel,
+  DialogTitle,
+  Transition,
+  TransitionChild,
+} from "@headlessui/react";
+import { jwtDecode } from "jwt-decode";
+import api from "../api/axiosConfig";
 
 const MySwal = withReactContent(Swal);
 
@@ -19,736 +27,531 @@ const Users = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [users, setUsers] = useState([]);
   const [meta, setMeta] = useState({ total: 0 });
-  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editSiswaModalOpen, setEditSiswaModalOpen] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState(null);
-  const search = searchParams.get('search') || '';
-  const sort = searchParams.get('sort') || 'name';
-  const order = searchParams.get('order') || 'asc';
-  const page = Number(searchParams.get('page')) || 1;
+
+  const search = searchParams.get("search") || "";
+  const sort = searchParams.get("sort") || "name";
+  const order = searchParams.get("order") || "asc";
+  const page = Number(searchParams.get("page")) || 1;
   const pageSize = 10;
 
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem("token");
   const decoded = token ? jwtDecode(token) : {};
   const role = decoded.role;
 
-  // Form data for adding/editing user
   const [formData, setFormData] = useState({
-    id: '',
-    userid: '',
-    nisn: '',
-    name: '',
-    gender: '',
-    class_id: '',
-    password: '123456',
-    role: 'admin',
+    id: "",
+    userid: "",
+    nisn: "",
+    name: "",
+    gender: "",
+    class_id: "",
+    class_name: "",
+    password: "123456",
+    role: "admin",
+    description: "",
     is_active: true,
     created_at: new Date().toISOString(),
-    updated_at: '',
+    updated_at: "",
   });
 
-
-  // Open modal for editing user
-  const handleEditUser = async (userId) => {
-    try {
-      const res = await axios.get(`http://localhost:3000/api/users/${userId}`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
-        },
-      });
-
-      const user = res.data[0];
-      
-      // Set form data for editing
-      if (user) {
-        setFormData({
-          id: user.id,
-          userid: user.userid,
-          nisn: user.nisn,
-          name: user.name,
-          gender: user.gender,
-          class_id: user.class_id,
-          password: user.password,
-          role: user.role,
-          is_active: user.is_active,
-          created_at: user.created_at,
-        });
-        setSelectedUserId(user.id);
-        setEditModalOpen(true); // Open the edit modal
-      }
-      
-    } catch (err) {
-      // Handle error fetching user data
-      MySwal.fire({
-        title: 'Error',
-        text: 'Gagal mengambil data user untuk diedit.',
-        icon: 'error',
-        confirmButtonText: 'OK',
-      });
-      setEditModalOpen(false);
-      setSelectedUserId(null);
-      console.error('Failed to fetch user for edit:', err);
-    }
-  };
-
-
-  // Open modal for editing user siswa
-  const handleEditUserSiswa = async (userId) => {
-    try {
-      const res = await axios.get(`http://localhost:3000/api/users/${userId}`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
-        },
-      });
-
-      const user = res.data[0];
-      
-      // Set form data for editing
-      if (user) {
-        setFormData({
-          id: user.id,
-          userid: user.userid,
-          nisn: user.nisn,
-          name: user.name,
-          gender: user.gender,
-          class_id: user.class_id,
-          password: user.password,
-          role: user.role,
-          is_active: user.is_active,
-          created_at: user.created_at,
-        });
-        setSelectedUserId(user.id);
-        setEditSiswaModalOpen(true); // Open the edit modal
-      }
-      
-    } catch (err) {
-      // Handle error fetching user data
-      MySwal.fire({
-        title: 'Error',
-        text: 'Gagal mengambil data user untuk diedit.',
-        icon: 'error',
-        confirmButtonText: 'OK',
-      });
-      setEditSiswaModalOpen(false);
-      setSelectedUserId(null);
-      console.error('Failed to fetch user for edit:', err);
-    }
-  };
-
-
-  // Handle input changes for form data
+  // Handle input changes
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-
-  // Handle update user
-  const handleUpdate = async () => {
-    try {
-      const updatedPayload = {
-        ...formData,
-        updated_at: new Date().toISOString(),
-      };
-
-      await axios.put(`http://localhost:3000/api/users/${selectedUserId}`, updatedPayload, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
-        },
-      });
-
-      setEditModalOpen(false);
-
-      MySwal.fire({
-        title: 'Berhasil!',
-        text: `User berhasil diperbarui.`,
-        icon: 'success',
-        timer: 1500,
-        showConfirmButton: false,
-      });
-
-      fetchUsers();
-    } catch (err) {
-      // Handle error updating user
-      MySwal.fire({
-        title: 'Gagal!',
-        text: `Gagal memperbarui user.`,
-        icon: 'error',
-        timer: 1500,
-        showConfirmButton: false,
-      });
-      setEditModalOpen(false);
-      setSelectedUserId(null);
-      setFormData({
-        userid: '',
-        nisn: '',
-        name: '',
-        gender: '',
-        class_id: '',
-        password: '123456',
-        role: 'admin',
-        is_active: true,
-        created_at: new Date().toISOString(),
-      });
-      setLoading(false);
-      setShowModal(false);
-      console.error('Failed to update user:', err);
-    }
-  };
-
-  // Handle update user siswa
-  const handleUpdateSiswa = async () => {
-    try {
-      const updatedPayload = {
-        ...formData,
-        updated_at: new Date().toISOString(),
-      };
-
-      await axios.put(`http://localhost:3000/api/users/siswa/${selectedUserId}`, updatedPayload, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
-        },
-      });
-
-      setEditSiswaModalOpen(false);
-
-      MySwal.fire({
-        title: 'Berhasil!',
-        text: `User berhasil diperbarui.`,
-        icon: 'success',
-        timer: 1500,
-        showConfirmButton: false,
-      });
-
-      fetchUsers();
-    } catch (err) {
-      // Handle error updating user
-      MySwal.fire({
-        title: 'Gagal!',
-        text: `Gagal memperbarui user.`,
-        icon: 'error',
-        timer: 1500,
-        showConfirmButton: false,
-      });
-      setEditSiswaModalOpen(false);
-      setSelectedUserId(null);
-      setFormData({
-        userid: '',
-        nisn: '',
-        name: '',
-        gender: '',
-        class_id: '',
-        password: '123456',
-        role: 'admin',
-        is_active: true,
-        created_at: new Date().toISOString(),
-      });
-      setLoading(false);
-      setShowModal(false);
-      console.error('Failed to update user:', err);
-    }
-  };
-
-
-  // Handle form submission for adding user
-  const handleSubmit = async () => {
-    try {
-      await axios.post('http://localhost:3000/api/users', formData, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
-        },
-      });
-
-      setFormData({
-        user_id: '',
-        nisn: '',
-        name: '',
-        gender: '',
-        class_id: '',
-        password: '123456',
-        role: 'admin',
-        status: true,
-        created_at: new Date().toISOString(),
-      });
-
-      setShowModal(false);
-
-      MySwal.fire({
-        title: 'Berhasil!',
-        text: `User berhasil ditambah.`,
-        icon: 'success',
-        timer: 1500,
-        showConfirmButton: false,
-      });
-
-      fetchUsers();
-    } catch (err) {
-      // Handle error adding user
-      MySwal.fire({
-        title: 'Gagal!',
-        text: `Gagal menambah user.`,
-        icon: 'error',
-        timer: 1500,
-        showConfirmButton: false,
-      });
-      setShowModal(false);
-      setFormData({
-        userid: '',
-        nisn: '',
-        name: '',
-        gender: '',
-        class_id: '',
-        password: '123456',
-        role: 'admin',
-        is_active: true,
-        created_at: new Date().toISOString(),
-        created_by: '',
-      });
-      setLoading(false);
-      console.error('Failed to add user:', err);
-    }
-  };
-
-
-  // Fetch users from API
+  // Fetch users
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const res = await axios.get('http://localhost:3000/api/users', {
+      const res = await api.get("/users", {
         params: { search, sort, order, page, limit: pageSize },
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
-      
-      const userList = Array.isArray(res.data?.data) ? res.data.data : [];
-      const metaInfo = res.data?.meta || { total: 0 };
-
-      setUsers(userList);
-      setMeta(metaInfo);
-      setTotal(metaInfo.total);
+      setUsers(res.data?.data || []);
+      setMeta(res.data?.meta || { total: 0 });
     } catch (err) {
-      // Handle error fetching users
-      MySwal.fire({
-        title: 'Error',
-        text: 'Gagal mengambil data pengguna.',
-        icon: 'error',
-        confirmButtonText: 'OK',
-      });
-      setLoading(false);
-      setSearchParams({ search: '', sort: 'name', order: 'asc', page: '1' });
+      console.error("Failed to fetch users:", err);
+      MySwal.fire("Error", "Gagal mengambil data pengguna.", "error");
       setUsers([]);
       setMeta({ total: 0 });
-      setTotal(0);
-      console.error('Failed to fetch users:', err);
     } finally {
       setLoading(false);
     }
   };
 
-
-  const handleGenerateToken = async () => {
-    const result = await MySwal.fire({
-      title: `Acak Token Siswa`,
-      text: `Password/Token Siswa akan diacak.`,
-      icon: 'question',
-      showCancelButton: true,
-      confirmButtonText: 'Ya!',
-      cancelButtonText: 'Batal',
-      reverseButtons: true,
-    });
-
-    if (result.isConfirmed) {
-      try {
-        const newPassword = generateRandomPassword();
-        
-        const res = await axios.post('http://localhost:3000/api/users/generate-password-siswa', 
-          { password: newPassword },
-          { 
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem('token')}`,
-            }
-          },
-        );
-
-        MySwal.fire({
-          title: 'Berhasil!',
-          text: `Semua password Siswa telah diganti menjadi ${newPassword}.`,
-          icon: 'success',
-          confirmButtonText: 'OK',
-        });
-
-        fetchUsers(); // refresh data
-      } catch (error) {
-        MySwal.fire({
-          title: 'Error',
-          text: 'Gagal acak password Siswa.',
-          icon: 'error',
-          timer: 1500,
-          showConfirmButton: false,
-        });
-        console.error("Failed to generate token:", error);
-      }
-    }
-  };
-
-  const generateRandomPassword = () => {
-    return 'SISWA-' + Math.random().toString(36).slice(-8);
-  };
-
-
-  // Handle fetching users on component mount and when search, sort, order, or page changes
   useEffect(() => {
     fetchUsers();
   }, [search, sort, order, page]);
 
+  // Submit user
+  const handleSubmit = async () => {
+    try {
+      await axios.post("http://localhost:3000/api/users", formData, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setShowModal(false);
+      MySwal.fire("Berhasil!", "User berhasil ditambahkan.", "success");
+      fetchUsers();
+    } catch (err) {
+      MySwal.fire("Gagal!", "Gagal menambah user.", "error");
+    }
+  };
+
+  // Edit & update
+  const handleEditUser = async (id) => {
+    try {
+      const res = await api.get(`/users/${id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const user = res.data;
+      setFormData(user);
+      setSelectedUserId(user.id);
+      setEditModalOpen(true);
+    } catch (err) {
+      console.error('Failed to fetch user data:', err);
+      
+      MySwal.fire("Error", "Gagal mengambil data user.", "error");
+    }
+  };
+
+  const handleEditSiswa = async (id) => {
+    try {
+      const res = await api.get(`/users/${id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const user = res.data;
+      console.log(res.data);
+      
+      setFormData(user);
+      setSelectedUserId(user.id);
+      setEditSiswaModalOpen(true);
+    } catch (err) {
+      console.error('Failed to fetch user data:', err);
+
+      MySwal.fire("Error", "Gagal mengambil data user.", "error");
+    }
+  };
+
+  const handleUpdate = async () => {
+    try {
+      await api.put(
+        `/users/${selectedUserId}`,
+        { ...formData, updated_at: new Date().toISOString() },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setEditModalOpen(false);
+      MySwal.fire("Berhasil!", "User berhasil diperbarui.", "success");
+      fetchUsers();
+    } catch (err) {
+      MySwal.fire("Gagal!", "Gagal memperbarui user.", "error");
+    }
+  };
+
+  const handleGenerateRandomToken = async () => {
+    try {
+      MySwal.fire({
+        title: "Apakah Anda yakin?",
+        text: "Token siswa akan diacak ulang.",
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonText: "Ya, acak!",
+        cancelButtonText: "Batal",
+        reverseButtons: true,
+      }).then(async (result) => {
+        if (result.isConfirmed) {
+          const res = await api.post(`/users/generate-password-siswa`, {}, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+
+          console.log(res.data);
+          
+          
+          MySwal.fire("Berhasil!", "Token berhasil diacak menjadi "+res.data.password, "success");
+        }
+      });
+    } catch (err) {
+      MySwal.fire("Gagal!", "Gagal mengacak token.", "error");
+    }
+  };
+
+  const AddUserModal = () => (
+    <Transition appear show={showModal} as={Fragment}>
+      <Dialog as="div" className="relative z-10" onClose={() => setShowModal(false)}>
+        <TransitionChild as={Fragment}>
+          <div className="fixed inset-0 bg-[rgba(0,0,0,0.3)] backdrop-blur-sm" />
+        </TransitionChild>
+
+        <div className="fixed inset-0 overflow-y-auto">
+          <div className="flex min-h-full items-center justify-center p-4 text-center">
+            <DialogPanel className="w-full max-w-md transform rounded-2xl bg-white p-6 text-left shadow-xl">
+              <DialogTitle className="text-lg font-semibold text-gray-800">
+                Tambah User Baru
+              </DialogTitle>
+
+              <div className="mt-4 space-y-4">
+                {/* NIK / NIS */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">NIK / NIS</label>
+                  <input
+                    name="userid"
+                    value={formData.userid}
+                    onChange={handleInputChange}
+                    className="mt-1 w-full border px-3 py-2 rounded-lg focus:ring-2 focus:ring-emerald-400"
+                  />
+                </div>
+
+                {/* NISN */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">NISN</label>
+                  <input
+                    name="nisn"
+                    value={formData.nisn}
+                    onChange={handleInputChange}
+                    className="mt-1 w-full border px-3 py-2 rounded-lg focus:ring-2 focus:ring-emerald-400"
+                  />
+                </div>
+
+                {/* Nama */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Nama</label>
+                  <input
+                    name="name"
+                    value={formData.name}
+                    onChange={handleInputChange}
+                    className="mt-1 w-full border px-3 py-2 rounded-lg focus:ring-2 focus:ring-emerald-400"
+                  />
+                </div>
+
+                {/* Gender */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Gender</label>
+                  <GenderSelect
+                    gender={formData.gender}
+                    setGender={(v) => setFormData((p) => ({ ...p, gender: v }))}
+                  />
+                </div>
+
+                {/* Role */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Role</label>
+                  <RoleSelect
+                    role={formData.role}
+                    setRole={(v) => setFormData((p) => ({ ...p, role: v }))}
+                  />
+                </div>
+
+                {/* Kelas */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Kelas</label>
+                  <ClassSelect
+                    classes={formData.class_id}
+                    setClasses={(v, name) =>
+                      setFormData((p) => ({ ...p, class_id: v, class_name: name }))
+                    }
+                  />
+                </div>
+
+                {/* Nomor kelas */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Nomor Kelas</label>
+                  <input
+                    name="class_name"
+                    value={formData.class_name || ""}
+                    onChange={handleInputChange}
+                    className="mt-1 w-full border px-3 py-2 rounded-lg focus:ring-2 focus:ring-emerald-400"
+                  />
+                </div>
+
+                {/* Deskripsi */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Deskripsi</label>
+                  <textarea
+                    name="description"
+                    value={formData.description}
+                    onChange={handleInputChange}
+                    className="mt-1 w-full border px-3 py-2 rounded-lg focus:ring-2 focus:ring-emerald-400"
+                  />
+                </div>
+              </div>
+
+              <div className="mt-6 flex justify-end space-x-2">
+                <button onClick={() => setShowModal(false)} className="px-4 py-2 bg-gray-200 rounded-lg">
+                  Batal
+                </button>
+                <button onClick={handleSubmit} className="px-4 py-2 bg-emerald-600 text-white rounded-lg">
+                  Simpan
+                </button>
+              </div>
+            </DialogPanel>
+          </div>
+        </div>
+      </Dialog>
+    </Transition>
+  );
+
+  // Modal Edit User (dengan field sama)
+  const EditUserModal = () => (
+    <Transition appear show={editModalOpen} as={Fragment}>
+      <Dialog as="div" className="relative z-10" onClose={() => setEditModalOpen(false)}>
+        <TransitionChild as={Fragment}>
+          <div className="fixed inset-0 bg-[rgba(0,0,0,0.3)] backdrop-blur-sm" />
+        </TransitionChild>
+
+        <div className="fixed inset-0 overflow-y-auto">
+          <div className="flex min-h-full items-center justify-center p-4 text-center">
+            <DialogPanel className="w-full max-w-md transform rounded-2xl bg-white p-6 text-left shadow-xl">
+              <DialogTitle className="text-lg font-semibold text-gray-800">
+                Edit User
+              </DialogTitle>
+
+              <div className="mt-4 space-y-4">
+                <input
+                  name="userid"
+                  value={formData.userid}
+                  disabled
+                  className="mt-1 w-full border px-3 py-2 rounded-lg bg-gray-100"
+                />
+                <input
+                  name="name"
+                  value={formData.name}
+                  onChange={handleInputChange}
+                  className="mt-1 w-full border px-3 py-2 rounded-lg"
+                />
+                <GenderSelect
+                  gender={formData.gender}
+                  setGender={(v) => setFormData((p) => ({ ...p, gender: v }))}
+                />
+                <RoleSelect
+                  role={formData.role}
+                  setRole={(v) => setFormData((p) => ({ ...p, role: v }))}
+                />
+                <textarea
+                  name="description"
+                  value={formData.description}
+                  onChange={handleInputChange}
+                  className="mt-1 w-full border px-3 py-2 rounded-lg"
+                />
+              </div>
+
+              <div className="mt-6 flex justify-end space-x-2">
+                <button onClick={() => setEditModalOpen(false)} className="px-4 py-2 bg-gray-200 rounded-lg">
+                  Batal
+                </button>
+                <button onClick={handleUpdate} className="px-4 py-2 bg-emerald-600 text-white rounded-lg">
+                  Update
+                </button>
+              </div>
+            </DialogPanel>
+          </div>
+        </div>
+      </Dialog>
+    </Transition>
+  );
+
+  // --- Modal khusus siswa ---
+  const EditSiswaModal = () => (
+    <Transition appear show={editSiswaModalOpen} as={Fragment}>
+      <Dialog as="div" className="relative z-10" onClose={() => setEditSiswaModalOpen(false)}>
+        <TransitionChild as={Fragment}>
+          <div className="fixed inset-0 bg-[rgba(0,0,0,0.3)] backdrop-blur-sm" />
+        </TransitionChild>
+
+        <div className="fixed inset-0 overflow-y-auto">
+          <div className="flex min-h-full items-center justify-center p-4 text-center">
+            <DialogPanel className="w-full max-w-md transform rounded-2xl bg-white p-6 text-left shadow-xl">
+              <DialogTitle className="text-lg font-semibold text-gray-800">
+                Edit Data Siswa
+              </DialogTitle>
+
+              <div className="mt-4 space-y-4">
+                {/* NISN */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">NISN</label>
+                  <input
+                    name="nisn"
+                    value={formData.nisn || ""}
+                    onChange={handleInputChange}
+                    className="mt-1 w-full border px-3 py-2 rounded-lg focus:ring-2 focus:ring-emerald-400"
+                  />
+                </div>
+
+                {/* Nama */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Nama</label>
+                  <input
+                    name="name"
+                    value={formData.name || ""}
+                    onChange={handleInputChange}
+                    className="mt-1 w-full border px-3 py-2 rounded-lg focus:ring-2 focus:ring-emerald-400"
+                  />
+                </div>
+
+                {/* Gender */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Gender</label>
+                  <GenderSelect
+                    gender={formData.gender}
+                    setGender={(v) => setFormData((p) => ({ ...p, gender: v }))}
+                  />
+                </div>
+
+                {/* Kelas */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Kelas</label>
+                  <ClassSelect
+                    classes={formData.class_id}
+                    setClasses={(v) =>
+                      setFormData((p) => ({ ...p, class_id: v }))
+                    }
+                  />
+                </div>
+
+                {/* Nomor Kelas */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Nomor Kelas</label>
+                  <input
+                    name="class_name"
+                    value={formData.class_name || ""}
+                    onChange={handleInputChange}
+                    className="mt-1 w-full border px-3 py-2 rounded-lg focus:ring-2 focus:ring-emerald-400"
+                  />
+                </div>
+
+
+                {/* Deskripsi */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Deskripsi</label>
+                  <textarea
+                    name="description"
+                    value={formData.description || ""}
+                    onChange={handleInputChange}
+                    className="mt-1 w-full border px-3 py-2 rounded-lg focus:ring-2 focus:ring-emerald-400"
+                  />
+                </div>
+              </div>
+
+              <div className="mt-6 flex justify-end space-x-2">
+                <button
+                  onClick={() => setEditSiswaModalOpen(false)}
+                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                >
+                  Batal
+                </button>
+                <button
+                  onClick={async () => {
+                    try {
+                      await api.put(
+                        `/users/${selectedUserId}`,
+                        { ...formData, updated_at: new Date().toISOString() },
+                        { headers: { Authorization: `Bearer ${token}` } }
+                      );
+                      setEditSiswaModalOpen(false);
+                      MySwal.fire("Berhasil!", "Data siswa berhasil diperbarui.", "success");
+                      fetchUsers();
+                    } catch (err) {
+                      MySwal.fire("Gagal!", "Gagal memperbarui data siswa.", "error");
+                    }
+                  }}
+                  className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
+                >
+                  Update
+                </button>
+              </div>
+            </DialogPanel>
+          </div>
+        </div>
+      </Dialog>
+    </Transition>
+  );
 
   return (
     <Sidebar>
-      <div className="p-6 min-h-screen bg-white rounded shadow max-w-screen-xl mx-auto overflow-hidden">
-        <h3 className="font-bold mb-4">User Management</h3>
-        <div className="mb-4 flex gap-2">
-          <button
-            onClick={() => setShowModal(true)}
-            className="bg-blue-600 hover:bg-blue-700 text-sm text-white font-semibold py-2 px-3 rounded"
-          >
-            + Tambah User
-          </button>
-          <button
-            onClick={handleGenerateToken}
-            className="bg-red-600 hover:bg-red-700 text-sm text-white font-semibold py-2 px-3 rounded"
-          >
-            Acak Token
-          </button>
+      <div className="p-8 bg-gray-50 min-h-screen rounded-2xl shadow-inner font-poppins">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <div className="p-3 bg-emerald-100 text-emerald-600 rounded-xl shadow-sm">
+              <FaUsers className="text-2xl" />
+            </div>
+            <h3 className="text-2xl font-semibold text-gray-800">
+              Manajemen Pengguna
+            </h3>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowModal(true)}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-lg font-medium shadow-sm transition-colors duration-200"
+            >
+              + Tambah User
+            </button>
+            <button
+              onClick={handleGenerateRandomToken}
+              className="bg-red-600 hover:bg-red-700 text-white px-4 py-2.5 rounded-lg font-medium shadow-sm transition-colors duration-200"
+            >
+              Acak Token
+            </button>
+          </div>
         </div>
 
-        <Transition appear show={showModal} as={Fragment}>
-          <Dialog as="div" className="relative z-10" onClose={() => setShowModal(false)}>
-            <TransitionChild
-              as={Fragment}
-              enter="ease-out duration-300"
-              enterFrom="opacity-0"
-              enterTo="opacity-100"
-              leave="ease-in duration-200"
-              leaveFrom="opacity-100"
-              leaveTo="opacity-0"
-            >
-              <div className="fixed inset-0 bg-[rgba(0,0,0,0.3)] backdrop-blur-sm" />
-            </TransitionChild>
+        {/* Table Section */}
+        <div className="mt-6 bg-white rounded-2xl shadow-md border border-gray-100 p-4 overflow-x-auto">
+          <SearchBar value={search} />
 
-            <div className="fixed inset-0 overflow-y-auto">
-              <div className="flex min-h-full items-center justify-center p-4 text-center">
-                <TransitionChild
-                  as={Fragment}
-                  enter="ease-out duration-300"
-                  enterFrom="opacity-0 scale-95"
-                  enterTo="opacity-100 scale-100"
-                  leave="ease-in duration-200"
-                  leaveFrom="opacity-100 scale-100"
-                  leaveTo="opacity-0 scale-95"
-                >
-                  <DialogPanel className="w-full max-w-md transform overflow-visible rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
-                    <DialogTitle as="h3" className="text-lg font-medium leading-6 text-gray-900">
-                      Add New User
-                    </DialogTitle>
-
-                    <div className="mt-4 space-y-4">
-                      <div>
-                        <label htmlFor="userid" className="block text-sm font-medium">NIK/NIS</label>
-                        <input
-                          id="userid"
-                          type="text"
-                          name="userid"
-                          value={formData.userid}
-                          onChange={handleInputChange}
-                          className="mt-1 w-full border border-2 border-gray-300 px-3 py-2 rounded"
-                        />
-                      </div>
-
-                      <div>
-                        <label htmlFor='name' className="block text-sm font-medium">Name</label>
-                        <input
-                          type="text"
-                          name="name"
-                          value={formData.name}
-                          onChange={handleInputChange}
-                          className="mt-1 w-full border border-2 border-gray-300 px-3 py-2 rounded"
-                        />
-                      </div>
-
-                      <div>
-                        <label htmlFor='role' className="pb-1 block text-sm font-medium">Role</label>
-                        <div className='border border-2 border-gray-300 rounded'>
-                          <RoleSelect 
-                            role={formData.role}
-                            setRole={(value) => setFormData(prev => ({ ...prev, role: value }))}
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="mt-6 flex justify-end space-x-2">
-                      <button
-                        onClick={() => setShowModal(false)}
-                        className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        onClick={handleSubmit}
-                        className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-                      >
-                        Save
-                      </button>
-                    </div>
-                  </DialogPanel>
-                </TransitionChild>
-              </div>
+          {loading ? (
+            <div className="mt-6 animate-pulse space-y-3">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="h-6 bg-gray-200 rounded"></div>
+              ))}
             </div>
-          </Dialog>
-        </Transition>
-
-        <Transition appear show={editModalOpen} as={Fragment}>
-          <Dialog as="div" className="relative z-10" onClose={() => setEditModalOpen(false)}>
-            <TransitionChild
-              as={Fragment}
-              enter="ease-out duration-300"
-              enterFrom="opacity-0"
-              enterTo="opacity-100"
-              leave="ease-in duration-200"
-              leaveFrom="opacity-100"
-              leaveTo="opacity-0"
-            >
-              <div className="fixed inset-0 bg-[rgba(0,0,0,0.3)] backdrop-blur-sm" />
-            </TransitionChild>
-
-            <div className="fixed inset-0 overflow-y-auto">
-              <div className="flex min-h-full items-center justify-center p-4 text-center">
-                <TransitionChild
-                  as={Fragment}
-                  enter="ease-out duration-300"
-                  enterFrom="opacity-0 scale-95"
-                  enterTo="opacity-100 scale-100"
-                  leave="ease-in duration-200"
-                  leaveFrom="opacity-100 scale-100"
-                  leaveTo="opacity-0 scale-95"
-                >
-                  <DialogPanel className="w-full max-w-md transform overflow-visible rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
-                    <DialogTitle as="h3" className="text-lg font-medium leading-6 text-gray-900">
-                      Edit User
-                    </DialogTitle>
-
-                    <div className="mt-4 space-y-4">
-                      <div>
-                        <label htmlFor="userid" className="block text-sm font-medium">NIK/NIS</label>
-                        <input
-                          id="userid"
-                          type="text"
-                          name="userid"
-                          value={formData.userid}
-                          onChange={handleInputChange}
-                          className="mt-1 w-full border border-2 border-gray-300 px-3 py-2 rounded"
-                          disabled
-                        />
-                      </div>
-
-                      <div>
-                        <label htmlFor='name' className="block text-sm font-medium">Name</label>
-                        <input
-                          type="text"
-                          name="name"
-                          value={formData.name}
-                          onChange={handleInputChange}
-                          className="mt-1 w-full border border-2 border-gray-300 px-3 py-2 rounded"
-                        />
-                      </div>
-
-                      <div>
-                        <label htmlFor='role' className="pb-1 block text-sm font-medium">Role</label>
-                        <div className='border border-2 border-gray-300 rounded'>
-                          <RoleSelect 
-                            role={formData.role}
-                            setRole={(value) => setFormData(prev => ({ ...prev, role: value }))}
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="mt-6 flex justify-end space-x-2">
-                      <button
-                        onClick={() => setEditModalOpen(false)}
-                        className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        onClick={handleUpdate}
-                        className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-                      >
-                        Update
-                      </button>
-                    </div>
-                  </DialogPanel>
-                </TransitionChild>
-              </div>
+          ) : users.length === 0 ? (
+            <div className="text-center text-gray-600 py-10">
+              Tidak ada data pengguna yang ditemukan.
             </div>
-          </Dialog>
-        </Transition>
-
-
-        <Transition appear show={editSiswaModalOpen} as={Fragment}>
-          <Dialog as="div" className="relative z-10" onClose={() => setEditSiswaModalOpen(false)}>
-            <TransitionChild
-              as={Fragment}
-              enter="ease-out duration-300"
-              enterFrom="opacity-0"
-              enterTo="opacity-100"
-              leave="ease-in duration-200"
-              leaveFrom="opacity-100"
-              leaveTo="opacity-0"
-            >
-              <div className="fixed inset-0 bg-[rgba(0,0,0,0.3)] backdrop-blur-sm" />
-            </TransitionChild>
-
-            <div className="fixed inset-0 overflow-y-auto">
-              <div className="flex min-h-full items-center justify-center p-4 text-center">
-                <TransitionChild
-                  as={Fragment}
-                  enter="ease-out duration-300"
-                  enterFrom="opacity-0 scale-95"
-                  enterTo="opacity-100 scale-100"
-                  leave="ease-in duration-200"
-                  leaveFrom="opacity-100 scale-100"
-                  leaveTo="opacity-0 scale-95"
-                >
-                  <DialogPanel className="w-full max-w-md transform overflow-visible rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
-                    <DialogTitle as="h3" className="text-lg font-medium leading-6 text-gray-900">
-                      Edit Profile Siswa
-                    </DialogTitle>
-
-                    <div className="mt-4 space-y-4">
-                      <div>
-                        <label htmlFor="userid" className="block text-sm font-medium">NIK/NIS</label>
-                        <input
-                          id="userid"
-                          type="text"
-                          name="userid"
-                          value={formData.userid}
-                          onChange={handleInputChange}
-                          className="mt-1 w-full border border-2 border-gray-300 px-3 py-2 rounded"
-                          disabled
-                        />
-                      </div>
-
-                      <div>
-                        <label htmlFor="userid" className="block text-sm font-medium">NISN</label>
-                        <input
-                          id="nisn"
-                          type="text"
-                          name="nisn"
-                          value={formData.nisn}
-                          onChange={handleInputChange}
-                          className="mt-1 w-full border border-2 border-gray-300 px-3 py-2 rounded"
-                        />
-                      </div>
-
-                      <div>
-                        <label htmlFor='name' className="block text-sm font-medium">Name</label>
-                        <input
-                          type="text"
-                          name="name"
-                          value={formData.name}
-                          onChange={handleInputChange}
-                          className="mt-1 w-full border border-2 border-gray-300 px-3 py-2 rounded"
-                        />
-                      </div>
-
-                      <div>
-                        <label htmlFor='gender' className="pb-1 block text-sm font-medium">Jenis Kelamin</label>
-                        <div className='border border-2 border-gray-300 rounded'>
-                          <GenderSelect
-                            gender={formData.gender}
-                            setGender={(value) => setFormData(prev => ({ ...prev, gender: value }))}
-                          />
-                        </div>
-                      </div>
-
-                      <div>
-                        <label htmlFor='class' className="pb-1 block text-sm font-medium">Kelas</label>
-                        <div className='border border-2 border-gray-300 rounded'>
-                          <ClassSelect
-                            classes={formData.class_id}
-                            setClasses={(value) => setFormData(prev => ({ ...prev, class_id: value }))}
-                          />
-                        </div>
-                      </div>
-
-                      <div>
-                        <label htmlFor='role' className="pb-1 block text-sm font-medium">Role</label>
-                        <div className='border border-2 border-gray-300 rounded'>
-                          <RoleSelect 
-                            role={formData.role}
-                            setRole={(value) => setFormData(prev => ({ ...prev, role: value }))}
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="mt-6 flex justify-end space-x-2">
-                      <button
-                        onClick={() => setEditModalOpen(false)}
-                        className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        onClick={handleUpdateSiswa}
-                        className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-                      >
-                        Update
-                      </button>
-                    </div>
-                  </DialogPanel>
-                </TransitionChild>
+          ) : (
+            <>
+              <div className="overflow-x-auto rounded-xl border border-gray-200">
+                <UserTable
+                  data={users}
+                  onRefresh={fetchUsers}
+                  searchParams={searchParams}
+                  setSearchParams={setSearchParams}
+                  onEdit={handleEditUser}
+                  onEditSiswa={handleEditSiswa}
+                />
               </div>
-            </div>
-          </Dialog>
-        </Transition>
 
-
-        <SearchBar value={search}/>
-        {loading ? (
-          <p className="mt-4">Loading...</p>
-        ) : (
-          <>
-            <UserTable
-              data={users}
-              onRefresh={fetchUsers}
-              searchParams={searchParams}
-              setSearchParams={setSearchParams}
-              onEdit={handleEditUser}
-              onEditSiswa={handleEditUserSiswa}
-            />
-            <div className="flex items-center justify-between mt-4">
-              <div className="text-sm text-gray-600">
-                {total > 0 && (
+              <div className="flex flex-col sm:flex-row items-center justify-between mt-6 gap-3 text-sm text-gray-600">
+                {meta.total > 0 && (
                   <span>
-                    Showing <strong>{(page - 1) * pageSize + 1}</strong> to{' '}
-                    <strong>{Math.min(page * pageSize, total)}</strong> of <strong>{total}</strong> entries
+                    Menampilkan{" "}
+                    <strong>{(page - 1) * pageSize + 1}</strong> hingga{" "}
+                    <strong>{Math.min(page * pageSize, meta.total)}</strong> dari{" "}
+                    <strong>{meta.total}</strong> entri
                   </span>
                 )}
+                <Pagination
+                  current={page}
+                  total={meta.total}
+                  pageSize={pageSize}
+                  onPageChange={(p) =>
+                    setSearchParams({ search, sort, order, page: p.toString() })
+                  }
+                />
               </div>
-              <Pagination
-                current={page}
-                total={meta.total}
-                pageSize={pageSize}
-              />
-            </div>
-          </>
-        )}
+            </>
+          )}
+        </div>
+      
+      {AddUserModal()}
+      {EditUserModal()}
+      {EditSiswaModal()}
+
       </div>
     </Sidebar>
   );

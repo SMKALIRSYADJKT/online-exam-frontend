@@ -6,7 +6,8 @@ import SearchBar from "../components/Users/SearchBar";
 import Pagination from "../components/Paginate";
 import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
-import StudentExamTable from "../components/Exams/StudentExamTable"; // bisa bikin table khusus student
+import StudentExamTable from "../components/Exams/StudentExamTable";
+import { FaBookOpen, FaClock, FaLeaf } from "react-icons/fa";
 
 const MySwal = withReactContent(Swal);
 
@@ -15,6 +16,7 @@ const StudentExams = () => {
   const [exams, setExams] = useState([]);
   const [loading, setLoading] = useState(true);
   const [meta, setMeta] = useState({ total: 0 });
+
   const search = searchParams.get("search") || "";
   const sort = searchParams.get("sort") || "title";
   const order = searchParams.get("order") || "asc";
@@ -37,16 +39,16 @@ const StudentExams = () => {
       setExams(examList);
       setMeta(metaInfo);
     } catch (err) {
+      console.error("Failed to fetch student exams:", err);
       MySwal.fire({
-        title: "Error",
-        text: "Gagal mengambil data ujian siswa.",
+        title: "Gagal Mengambil Data",
+        text: "Terjadi kesalahan saat memuat ujian hari ini.",
         icon: "error",
         confirmButtonText: "OK",
       });
       setSearchParams({ search: "", sort: "title", order: "asc", page: "1" });
       setExams([]);
       setMeta({ total: 0 });
-      console.error("Failed to fetch student exams:", err);
     } finally {
       setLoading(false);
     }
@@ -58,45 +60,99 @@ const StudentExams = () => {
 
   return (
     <Sidebar>
-      <div className="p-6 min-h-screen bg-white rounded shadow max-w-screen-xl mx-auto overflow-hidden">
-        <h3 className="font-bold mb-4">Ujian Hari Ini</h3>
-
-        {/* 🔍 Search Bar */}
-        <SearchBar value={search} />
-
-        {loading ? (
-          <p className="mt-4">Loading...</p>
-        ) : (
-          <>
-            <StudentExamTable
-              data={exams}
-              searchParams={searchParams}
-              setSearchParams={setSearchParams}
-              onRefresh={fetchStudentExams}
-              isStudentView={true} // kalau butuh bedain tampilan
-            />
-
-            <div className="flex items-center justify-between mt-4">
-              <div className="text-sm text-gray-600">
-                {meta.total > 0 && (
-                  <span>
-                    Showing <strong>{(page - 1) * pageSize + 1}</strong> to{" "}
-                    <strong>{Math.min(page * pageSize, meta.total)}</strong> of{" "}
-                    <strong>{meta.total}</strong> entries
-                  </span>
-                )}
-              </div>
-              <Pagination
-                current={page}
-                total={meta.total}
-                pageSize={pageSize}
-                onPageChange={(p) => setSearchParams({ 
-                  search, sort, order, page: p.toString() 
-                })}
-              />
+      <div className="p-6 min-h-screen bg-gray-50 rounded-2xl shadow-sm max-w-screen-xl mx-auto transition-all duration-300">
+        {/* === Header Section === */}
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center gap-3">
+            <div className="bg-emerald-100 p-3 rounded-2xl">
+              <FaBookOpen className="text-emerald-600 text-3xl" />
             </div>
-          </>
-        )}
+            <div>
+              <h3 className="text-2xl font-bold text-gray-800">
+                Ujian Hari Ini
+              </h3>
+              <p className="text-gray-600 text-sm pt-1">
+                Daftar ujian yang tersedia untuk kamu hari ini — semangat dan
+                tetap fokus ya 🌿
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* === Statistik Mini === */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
+          <div className="flex items-center justify-between bg-white border border-emerald-100 p-5 rounded-2xl shadow-sm hover:shadow-md transition-all">
+            <div>
+              <p className="text-gray-500 text-sm">Total Ujian Hari Ini</p>
+              <p className="text-2xl font-bold text-emerald-600">{meta.total}</p>
+            </div>
+            <FaClock className="text-3xl text-emerald-500 opacity-80" />
+          </div>
+
+          <div className="flex items-center justify-between bg-white border border-emerald-100 p-5 rounded-2xl shadow-sm hover:shadow-md transition-all">
+            <div>
+              <p className="text-gray-500 text-sm">Status</p>
+              <p className="text-2xl font-bold text-emerald-600">
+                {loading ? "Memuat..." : "Tersedia"}
+              </p>
+            </div>
+            <FaLeaf className="text-3xl text-emerald-500 opacity-80" />
+          </div>
+        </div>
+
+        {/* === Table Section === */}
+        <div className="mt-6 bg-white rounded-2xl shadow-md border border-gray-100 p-4 overflow-x-auto">
+          
+          <SearchBar value={search} />
+          {loading ? (
+            <div className="mt-6 animate-pulse space-y-3">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="h-6 bg-gray-200 rounded"></div>
+              ))}
+            </div>
+          ) : exams.length === 0 ? (
+            <p className="text-gray-500 italic text-center py-10">
+              Tidak ada ujian tersedia hari ini.
+            </p>
+          ) : (
+            <>
+              <StudentExamTable
+                data={exams}
+                searchParams={searchParams}
+                setSearchParams={setSearchParams}
+                onRefresh={fetchStudentExams}
+                isStudentView={true}
+              />
+
+              {/* Pagination Section */}
+              <div className="flex items-center justify-between mt-6 flex-wrap gap-3">
+                <div className="text-sm text-gray-600">
+                  {meta.total > 0 && (
+                    <span>
+                      Menampilkan{" "}
+                      <strong>{(page - 1) * pageSize + 1}</strong> hingga{" "}
+                      <strong>{Math.min(page * pageSize, meta.total)}</strong> dari{" "}
+                      <strong>{meta.total}</strong> data
+                    </span>
+                  )}
+                </div>
+                <Pagination
+                  current={page}
+                  total={meta.total}
+                  pageSize={pageSize}
+                  onPageChange={(p) =>
+                    setSearchParams({
+                      search,
+                      sort,
+                      order,
+                      page: p.toString(),
+                    })
+                  }
+                />
+              </div>
+            </>
+          )}
+        </div>
       </div>
     </Sidebar>
   );

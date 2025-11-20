@@ -1,62 +1,97 @@
 import { Fragment, useEffect, useState } from "react";
 import { Dialog, Transition } from "@headlessui/react";
+import Swal from "sweetalert2";
+import withReactContent from "sweetalert2-react-content";
 
 export default function StudentsModal({ isOpen, onClose, examId }) {
+  const MySwal = withReactContent(Swal);
+  
   const [students, setStudents] = useState([]);
   const [selectedStudents, setSelectedStudents] = useState([]);
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 10,
+    total: 0,
+  });
+  const [loading, setLoading] = useState(false);
 
-  // Fetch semua siswa & siswa yg sudah ikut exam
-  useEffect(() => {
-    if (isOpen && examId) {
-      Promise.all([
-        fetch(`http://localhost:3000/api/users/role?role=SISWA`, {
-          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-        }).then((res) => res.json()),
+  const token = localStorage.getItem("token");
+
+  const fetchStudents = async (page = 1) => {
+    if (!examId) return;
+    setLoading(true);
+
+    try {
+      const [allUsersRes, examUsersRes] = await Promise.all([
+        fetch(
+          `http://localhost:3000/api/users/role?role=SISWA&examId=${examId}&page=${page}&limit=${pagination.limit}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        ).then((res) => res.json()),
         fetch(`http://localhost:3000/api/exams/${examId}/students`, {
-          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+          headers: { Authorization: `Bearer ${token}` },
         }).then((res) => res.json()),
-      ])
-        .then(([allUsers, examUsers]) => {
-          console.log("All users:", allUsers);
-          console.log("Exam users:", examUsers);
+      ]);
 
-          setStudents(allUsers.data || []);
-          setSelectedStudents(examUsers || []);
-        })
-        .catch((err) => console.error("Failed to fetch students:", err));
+      setStudents(allUsersRes.data || []);
+      setPagination({
+        page: allUsersRes.page,
+        limit: allUsersRes.limit,
+        total: allUsersRes.total,
+      });
+      setSelectedStudents(
+        Array.isArray(examUsersRes)
+        ? examUsersRes.map((item) => item.student_id)
+        : []
+      );
+    } catch (err) {
+      console.error("Failed to fetch students:", err);
+    } finally {
+      setLoading(false);
     }
-  }, [isOpen, examId]);
+  };
 
-  // toggle student
+  useEffect(() => {
+    if (isOpen) fetchStudents(pagination.page);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, pagination.page]);
+
   const handleToggle = (id) => {
     setSelectedStudents((prev) =>
       prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]
     );
   };
 
-  // simpan ke DB
-  const handleSave = () => {
-    fetch(`http://localhost:3000/api/exams/${examId}/students`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${localStorage.getItem("token")}`,
-      },
-      body: JSON.stringify({ studentIds: selectedStudents }),
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error("Failed to save students");
-        return res.json();
-      })
-      .then(() => {
-        onClose();
-      })
-      .catch((err) => console.error(err));
+  const handleSave = async () => {
+    try {
+      const res = await fetch(`http://localhost:3000/api/exams/${examId}/students`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ studentIds: selectedStudents }),
+      });
+
+      MySwal.fire({
+        icon: "success",
+        title: "Berhasil!",
+        text: "Data siswa berhasil disimpan.",
+        timer: 1500,
+        showConfirmButton: false,
+      });
+
+      if (!res.ok) throw new Error("Failed to save students");
+      onClose();
+    } catch (err) {
+      console.error(err);
+    }
   };
+
+  const totalPages = Math.ceil(pagination.total / pagination.limit);
 
   return (
     <Transition appear show={isOpen} as={Fragment}>
-      <Dialog as="div" className="relative z-50" onClose={onClose}>
+      <Dialog as="div" className="relative z-50 font-poppins" onClose={onClose}>
         <Transition.Child
           as={Fragment}
           enter="ease-out duration-200"
@@ -66,7 +101,7 @@ export default function StudentsModal({ isOpen, onClose, examId }) {
           leaveFrom="opacity-100"
           leaveTo="opacity-0"
         >
-          <div className="fixed inset-0 bg-[rgba(0,0,0,0.3)] backdrop-blur-sm" />
+          <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" />
         </Transition.Child>
 
         <div className="fixed inset-0 overflow-y-auto">
@@ -80,31 +115,52 @@ export default function StudentsModal({ isOpen, onClose, examId }) {
               leaveFrom="opacity-100 scale-100"
               leaveTo="opacity-0 scale-95"
             >
-              <Dialog.Panel className="w-full max-w-2xl transform rounded-2xl bg-white p-6 shadow-xl transition-all">
-                <Dialog.Title className="text-lg font-medium text-gray-900">
+              <Dialog.Panel className="w-full max-w-3xl transform rounded-2xl bg-white p-6 shadow-lg transition-all">
+                <Dialog.Title className="text-lg font-semibold text-emerald-700">
                   Assign Students
                 </Dialog.Title>
 
-                <div className="mt-4 max-h-96 overflow-y-auto">
-                  <table className="w-full table-auto border border-gray-200 text-sm text-gray-600">
-                    <thead className="bg-gray-100">
+                <div className="mt-4 max-h-[60vh] overflow-y-auto border rounded-xl">
+                  <table className="w-full text-sm text-gray-700">
+                    <thead className="bg-emerald-50 text-emerald-700 uppercase text-xs font-semibold tracking-wider">
                       <tr>
-                        <th className="px-4 py-2 text-left">#</th>
-                        <th className="px-4 py-2 text-left">Name</th>
-                        <th className="px-4 py-2 text-left">Email</th>
-                        <th className="px-4 py-2 text-center">Assign</th>
+                        <th className="px-4 py-3 text-left">No</th>
+                        <th className="px-4 py-3 text-center">NIS</th>
+                        <th className="px-4 py-3 text-left">Nama</th>
+                        <th className="px-4 py-3 text-center">Kelas</th>
+                        <th className="px-4 py-3 text-center">Pilih</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {students.length > 0 ? (
+                      {loading ? (
+                        <tr>
+                          <td
+                            colSpan="4"
+                            className="text-center py-8 text-gray-500 italic"
+                          >
+                            Loading data...
+                          </td>
+                        </tr>
+                      ) : students.length > 0 ? (
                         students.map((student, index) => (
-                          <tr key={student.id}>
-                            <td className="px-4 py-2 border">{index + 1}</td>
-                            <td className="px-4 py-2 border">{student.name}</td>
-                            <td className="px-4 py-2 border">{student.email}</td>
-                            <td className="px-4 py-2 border text-center">
+                          <tr
+                            key={student.id}
+                            className="hover:bg-emerald-50 transition-all duration-150 border-b last:border-none"
+                          >
+                            <td className="px-4 py-3">
+                              {(pagination.page - 1) * pagination.limit + index + 1}
+                            </td>
+                            <td className="px-4 py-3 font-medium text-gray-800 text-center">
+                              {student.userid}
+                            </td>
+                            <td className="px-4 py-3 font-medium text-gray-800">
+                              {student.name}
+                            </td>
+                            <td className="px-4 py-3 text-center">{student.class_name || "-"}</td>
+                            <td className="px-4 py-3 text-center">
                               <input
                                 type="checkbox"
+                                className="accent-emerald-600"
                                 checked={selectedStudents.includes(student.id)}
                                 onChange={() => handleToggle(student.id)}
                               />
@@ -115,9 +171,9 @@ export default function StudentsModal({ isOpen, onClose, examId }) {
                         <tr>
                           <td
                             colSpan="4"
-                            className="px-4 py-2 text-center text-gray-500"
+                            className="text-center py-8 text-gray-500 italic"
                           >
-                            No students found
+                            Tidak ada siswa ditemukan
                           </td>
                         </tr>
                       )}
@@ -125,18 +181,59 @@ export default function StudentsModal({ isOpen, onClose, examId }) {
                   </table>
                 </div>
 
+                {/* Pagination */}
+                <div className="flex justify-between items-center mt-4 text-sm text-gray-600">
+                  <span>
+                    Halaman {pagination.page} dari {totalPages} — Total {pagination.total} siswa
+                  </span>
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() =>
+                        setPagination((prev) => ({
+                          ...prev,
+                          page: Math.max(prev.page - 1, 1),
+                        }))
+                      }
+                      disabled={pagination.page === 1}
+                      className={`px-3 py-1 rounded-lg border text-sm ${
+                        pagination.page === 1
+                          ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                          : "bg-white hover:bg-emerald-50 border-emerald-200 text-emerald-600"
+                      }`}
+                    >
+                      Prev
+                    </button>
+                    <button
+                      onClick={() =>
+                        setPagination((prev) => ({
+                          ...prev,
+                          page: Math.min(prev.page + 1, totalPages),
+                        }))
+                      }
+                      disabled={pagination.page >= totalPages}
+                      className={`px-3 py-1 rounded-lg border text-sm ${
+                        pagination.page >= totalPages
+                          ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                          : "bg-white hover:bg-emerald-50 border-emerald-200 text-emerald-600"
+                      }`}
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+
                 <div className="mt-6 flex justify-end space-x-2">
                   <button
-                    className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400"
+                    className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all"
                     onClick={onClose}
                   >
-                    Cancel
+                    Batal
                   </button>
                   <button
-                    className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                    className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all"
                     onClick={handleSave}
                   >
-                    Save
+                    Simpan
                   </button>
                 </div>
               </Dialog.Panel>

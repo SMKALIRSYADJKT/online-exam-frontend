@@ -36,7 +36,7 @@ const ExamResultDetail = () => {
         icon: "error",
         confirmButtonText: "OK",
       });
-      navigate("/student/submitted-exams");
+      navigate("/exam-submissions");
     } finally {
       setLoading(false);
     }
@@ -73,52 +73,102 @@ const ExamResultDetail = () => {
 
         <div className="space-y-3 text-sm text-gray-700">
           <p>
-            <strong>Judul Ujian:</strong> {result.exam?.title}
+            <strong>Judul Ujian:</strong> {result.exam?.title || "-"}
           </p>
           <p>
-            <strong>Mata Pelajaran:</strong> {result.exam?.subjects?.name}
+            <strong>Mata Pelajaran:</strong>{" "}
+            {typeof result.exam?.subject === "object"
+              ? result.exam?.subject?.name
+              : result.exam?.subject || "-"}
           </p>
           <p>
-            <strong>Tipe:</strong> {result.exam?.type}
+            <strong>Tipe:</strong> {result.exam?.type || "-"}
           </p>
           <p>
             <strong>Tanggal Submit:</strong>{" "}
-            {formatDateOnly(result.created_at)}
+            {result.created_at ? formatDateOnly(result.created_at) : "-"}
           </p>
           <p>
-            <strong>Skor:</strong>{" "}
-            {result.score !== null ? result.score : "-"}
+            <strong>Skor:</strong> {result.score ?? "-"}
           </p>
         </div>
 
-        <h4 className="mt-6 font-semibold">Jawaban Anda</h4>
         <div className="mt-2 border rounded p-4 bg-gray-50">
           {Array.isArray(result.answers) && result.answers.length > 0 ? (
-            result.answers.map((ans, idx) => (
-              <div
-                key={idx}
-                className="mb-3 pb-3 border-b last:border-0 last:pb-0"
-              >
-                <p className="font-medium">
-                  {idx + 1}. {ans.question}
-                </p>
-                <p className="ml-4">
-                  <strong>Jawaban Anda:</strong> {ans.answer}
-                </p>
-                <p className="ml-4">
-                  <strong>Benar/Salah:</strong>{" "}
-                  {ans.is_correct ? (
-                    <span className="text-green-600">Benar</span>
-                  ) : (
-                    <span className="text-red-600">Salah</span>
+            result.answers.map((ans, idx) => {
+              // Extract dengan fallback aman
+              const questionText =
+                typeof ans.question === "object"
+                  ? ans.question?.question || "Pertanyaan tidak ditemukan"
+                  : ans.question || "Pertanyaan tidak ditemukan";
+
+              const options = Array.isArray(ans.question?.options)
+                ? ans.question.options
+                : [];
+
+              return (
+                <div
+                  key={idx}
+                  className="mb-3 pb-3 border-b last:border-0 last:pb-0"
+                >
+                  <p className="font-medium">
+                    {idx + 1}. {questionText}
+                  </p>
+
+                  {/* Kalau ada opsi jawaban */}
+                  {options.length > 0 && (
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 my-2">
+                      {options.map((opt, i) => (
+                        <div key={i} className="text-center">
+                          {opt.type === "image" ? (
+                            <img
+                              src={opt.value}
+                              alt={`Opsi ${i + 1}`}
+                              className={`w-24 h-24 object-cover border rounded ${
+                                ans.answer === opt.value
+                                  ? "border-green-500"
+                                  : "border-gray-300"
+                              }`}
+                            />
+                          ) : (
+                            <p
+                              className={`p-2 border rounded ${
+                                ans.answer === opt.value
+                                  ? "bg-green-100 border-green-400"
+                                  : "bg-white"
+                              }`}
+                            >
+                              {opt.value}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
                   )}
-                </p>
-              </div>
-            ))
+
+                  {/* Jawaban user */}
+                  <p className="ml-4">
+                    <strong>Jawaban Anda:</strong>{" "}
+                    {typeof ans.answer === "object"
+                      ? JSON.stringify(ans.answer)
+                      : ans.answer || "Tidak ada jawaban"}
+                  </p>
+
+                  {/* Jawaban benar */}
+                  <p className="ml-4">
+                    <strong>Jawaban Benar:</strong>{" "}
+                    {typeof ans.question?.answer === "object"
+                      ? JSON.stringify(ans.question.answer)
+                      : ans.question?.answer || "-"}
+                  </p>
+                </div>
+              );
+            })
           ) : (
             <p>Tidak ada jawaban yang tersimpan.</p>
           )}
         </div>
+
       </div>
     </Sidebar>
   );

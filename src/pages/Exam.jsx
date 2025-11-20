@@ -1,92 +1,72 @@
-import { useState, useEffect, Fragment } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import Sidebar from '../components/Sidebar';
-import axios from 'axios';
-import SearchBar from '../components/Users/SearchBar';
-import ExamTable from '../components/Exams/ExamTable';
-import Pagination from '../components/Paginate';
-import Swal from 'sweetalert2';
-import withReactContent from 'sweetalert2-react-content';
-import { Dialog, DialogPanel, DialogTitle, Transition, TransitionChild } from '@headlessui/react';
-import SubjectSelect from '../components/DropdownSubject';
+import { useState, useEffect, Fragment } from "react";
+import { useSearchParams } from "react-router-dom";
+import Sidebar from "../components/Sidebar";
+import axios from "axios";
+import SearchBar from "../components/Users/SearchBar";
+import ExamTable from "../components/Exams/ExamTable";
+import Pagination from "../components/Paginate";
+import Swal from "sweetalert2";
+import withReactContent from "sweetalert2-react-content";
+import {
+  Dialog,
+  DialogPanel,
+  DialogTitle,
+  Transition,
+  TransitionChild,
+} from "@headlessui/react";
+import SubjectSelect from "../components/DropdownSubject";
 import CustomDatePicker from "../components/CustomDatePicker";
-import ExamTypeSelect from '../components/DropdownExamType';
-import { format } from 'date-fns';
+import ExamTypeSelect from "../components/DropdownExamType";
+import { format } from "date-fns";
+import { FaClipboardList } from "react-icons/fa";
+import api from "../api/axiosConfig";
 
 const MySwal = withReactContent(Swal);
 
-const Exams = () => {
+const Exam = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [exams, setExams] = useState([]);
-  const [type, setType] = useState('Reguler');
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [selectedId, setSelectedId] = useState(null);
-  const [total, setTotal] = useState(0);
   const [meta, setMeta] = useState({ total: 0 });
-  const search = searchParams.get('search') || '';
-  const sort = searchParams.get('sort') || 'title';
-  const order = searchParams.get('order') || 'asc';
-  const page = Number(searchParams.get('page')) || 1;
+  const search = searchParams.get("search") || "";
+  const page = Number(searchParams.get("page")) || 1;
   const pageSize = 10;
-  const today = new Date().toISOString().split("T")[0];
 
-  // Form data for adding/editing exam
   const [formData, setFormData] = useState({
-    id: '',
-    subject_id: '',
-    title: '',
-    date: '',
-    type: 'Reguler',
+    title: "",
+    subject_id: "",
+    type: "Reguler",
+    date: "",
     duration: 0,
-    created_at: new Date().toISOString(),
-    updated_at: '',
   });
 
-  // Handle input changes for form data
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  // Handle date change for form data
   const handleDateChange = (date) => {
-    const formatted = format(date, 'yyyy-MM-dd');
-    setFormData(prev => ({ ...prev, date: formatted }));
+    const formatted = format(date, "yyyy-MM-dd");
+    setFormData((prev) => ({ ...prev, date: formatted }));
   };
 
   const fetchExams = async () => {
     setLoading(true);
     try {
-      const res = await axios.get('http://localhost:3000/api/exams', {
-        params: { search, sort, order, page, limit: pageSize },
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
-        },
+      const res = await api.get("/exams", {
+        params: { search, page, limit: pageSize },
       });
-
-      const examList = Array.isArray(res.data?.data) ? res.data.data : [];
-      const metaInfo = res.data?.meta || { total: 0 };
-
-      console.log(examList);
-      console.log(res.data);
-
-      setExams(examList);
-      setMeta(metaInfo);
-      setTotal(metaInfo.total);
-    } catch (err) {
+      setExams(Array.isArray(res.data?.data) ? res.data.data : []);
+      setMeta(res.data?.meta || { total: 0 });
+    } catch {
       MySwal.fire({
-        title: 'Error',
-        text: 'Gagal mengambil data ujian.',
-        icon: 'error',
-        confirmButtonText: 'OK',
+        title: "Error",
+        text: "Gagal mengambil data ujian.",
+        icon: "error",
       });
-      setSearchParams({ search: '', sort: 'title', order: 'asc', page: '1' });
-      setExams([]);
-      setMeta({ total: 0 });
-      setTotal(0);
-      console.error('Failed to fetch exams:', err);
     } finally {
       setLoading(false);
     }
@@ -96,164 +76,153 @@ const Exams = () => {
     fetchExams();
   }, [page]);
 
-  // Handle form submission for adding exam
   const handleSubmit = async () => {
     try {
-      await axios.post('http://localhost:3000/api/exams', formData, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
-        },
+      await api.post("/exams", formData, {
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
       });
-
-      setFormData({
-        subject_id: '',
-        title: '',
-        type: '',
-        date: '',
-        duration: 0,
-        created_at: new Date().toISOString(),
-      });
-
       setShowModal(false);
-
       MySwal.fire({
-        title: 'Berhasil!',
-        text: `Ujian berhasil ditambah.`,
-        icon: 'success',
+        title: "Berhasil!",
+        text: `Ujian berhasil ditambahkan.`,
+        icon: "success",
         timer: 1500,
         showConfirmButton: false,
       });
-
       fetchExams();
-    } catch (err) {
-      // Handle error adding exam
+    } catch {
       MySwal.fire({
-        title: 'Gagal!',
-        text: `Gagal menambah Ujian.`,
-        icon: 'error',
-        timer: 1500,
-        showConfirmButton: false,
+        title: "Gagal!",
+        text: `Tidak dapat menambah ujian.`,
+        icon: "error",
       });
-      setShowModal(false);
-      setFormData({
-        subject_id: '',
-        title: '',
-        type: '',
-        date: '',
-        duration: 0,
-        created_at: new Date().toISOString(),
-        created_by: '',
-      });
-      setLoading(false);
-      console.error('Failed to add exam:', err);
     }
   };
 
-  // Open modal for editing exam
   const handleEdit = async (id) => {
     try {
-      const res = await axios.get(`http://localhost:3000/api/exams/${id}`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
-        },
+      const res = await api.get(`/exams/${id}`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
       });
-
       const exam = res.data;
-      
-      // Set form data for editing
       if (exam) {
         setFormData({
-          id: exam.id,
-          subject_id: exam.subject_id,
           title: exam.title,
+          subject_id: exam.subject_id,
           type: exam.type,
           date: exam.date,
           duration: exam.duration,
-          created_at: exam.created_at,
         });
         setSelectedId(exam.id);
-        setEditModalOpen(true); // Open the edit modal
+        setEditModalOpen(true);
       }
-      
-    } catch (err) {
-      // Handle error fetching exam data
+    } catch {
       MySwal.fire({
-        title: 'Error',
-        text: 'Gagal mengambil data Ujian untuk diedit.',
-        icon: 'error',
-        confirmButtonText: 'OK',
+        title: "Error",
+        text: "Gagal mengambil data ujian untuk diedit.",
+        icon: "error",
       });
-      setEditModalOpen(false);
-      setSelectedId(null);
-      console.error('Failed to fetch exam for edit:', err);
     }
   };
 
-  // Handle update user
   const handleUpdate = async () => {
     try {
-      const updatedPayload = {
-        ...formData,
-        updated_at: new Date().toISOString(),
-      };
-
-      await axios.put(`http://localhost:3000/api/exams/${selectedId}`, updatedPayload, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
-        },
-      });
-
+      await api.put(
+        `/exams/${selectedId}`,
+        formData,
+        { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
+      );
       setEditModalOpen(false);
-
       MySwal.fire({
-        title: 'Berhasil!',
-        text: `Ujian berhasil diperbarui.`,
-        icon: 'success',
+        title: "Berhasil!",
+        text: "Ujian berhasil diperbarui.",
+        icon: "success",
         timer: 1500,
         showConfirmButton: false,
       });
-
       fetchExams();
-    } catch (err) {
-      // Handle error updating ujian
+    } catch {
       MySwal.fire({
-        title: 'Gagal!',
-        text: `Gagal memperbarui Ujian.`,
-        icon: 'error',
-        timer: 1500,
-        showConfirmButton: false,
+        title: "Gagal!",
+        text: "Tidak dapat memperbarui ujian.",
+        icon: "error",
       });
-      setEditModalOpen(false);
-      setSelectedId(null);
-      setFormData({
-        subject_id: '',
-        title: '',
-        type: '',
-        date: '',
-        duration: 0,
-        created_at: new Date().toISOString(),
-      });
-      setLoading(false);
-      setShowModal(false);
-      console.error('Failed to update exam:', err);
     }
   };
 
   return (
     <Sidebar>
-      <div className="p-6 min-h-screen bg-white rounded shadow max-w-screen-xl mx-auto overflow-hidden">
-        <h3 className="font-bold mb-4">Daftar Ujian</h3>
-        <div className="mb-4 flex gap-2">
+      <div className="p-8 bg-gray-50 min-h-screen rounded-2xl shadow-inner">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <div className="p-3 bg-emerald-100 text-emerald-600 rounded-xl shadow-sm">
+              <FaClipboardList className="text-3xl" />
+            </div>
+            <h3 className="text-2xl font-bold text-gray-800">Daftar Ujian</h3>
+          </div>
           <button
             onClick={() => setShowModal(true)}
-            className="bg-blue-600 hover:bg-blue-700 text-sm text-white font-semibold py-2 px-3 rounded"
+            className="bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-700 hover:to-emerald-600 text-white font-semibold py-2 px-4 rounded-xl shadow-md transition-all"
           >
             + Tambah Ujian
           </button>
         </div>
 
-        <Transition appear show={showModal} as={Fragment}>
-          <Dialog as="div" className="relative z-10" onClose={() => setShowModal(false)}>
+        {/* Table Section */}
+        <div className="bg-white p-6 rounded-2xl shadow-lg border border-gray-100">
+          <SearchBar value={search} />
+
+          {loading ? (
+            <div className="mt-6 animate-pulse space-y-3">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="h-6 bg-gray-200 rounded"></div>
+              ))}
+            </div>
+          ) : (
+            <>
+              <div className="overflow-x-auto rounded-xl border border-gray-200">
+                <ExamTable
+                  data={exams}
+                  onRefresh={fetchExams}
+                  searchParams={searchParams}
+                  setSearchParams={setSearchParams}
+                  onEdit={handleEdit}
+                />
+              </div>
+
+              <div className="flex items-center justify-between mt-6">
+                <div className="text-sm text-gray-500">
+                  {meta.total > 0 && (
+                    <span>
+                      Menampilkan{" "}
+                      <strong>{(page - 1) * pageSize + 1}</strong> -{" "}
+                      <strong>{Math.min(page * pageSize, meta.total)}</strong>{" "}
+                      dari <strong>{meta.total}</strong> ujian
+                    </span>
+                  )}
+                </div>
+                <Pagination
+                  current={page}
+                  total={meta.total}
+                  pageSize={pageSize}
+                  onPageChange={(p) => setSearchParams({ page: p })}
+                />
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Modal Tambah/Edit */}
+        <Transition appear show={showModal || editModalOpen} as={Fragment}>
+          <Dialog
+            as="div"
+            className="relative z-10"
+            onClose={() => {
+              setShowModal(false);
+              setEditModalOpen(false);
+            }}
+          >
             <TransitionChild
               as={Fragment}
               enter="ease-out duration-300"
@@ -263,7 +232,7 @@ const Exams = () => {
               leaveFrom="opacity-100"
               leaveTo="opacity-0"
             >
-              <div className="fixed inset-0 bg-[rgba(0,0,0,0.3)] backdrop-blur-sm" />
+              <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" />
             </TransitionChild>
 
             <div className="fixed inset-0 overflow-y-auto">
@@ -277,79 +246,94 @@ const Exams = () => {
                   leaveFrom="opacity-100 scale-100"
                   leaveTo="opacity-0 scale-95"
                 >
-                  <DialogPanel className="w-full max-w-md transform overflow-visible rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
-                    <DialogTitle as="h3" className="text-lg font-medium leading-6 text-gray-900">
-                      Tambah Ujian Baru
+                  <DialogPanel className="w-full max-w-md transform rounded-2xl bg-white p-6 text-left align-middle shadow-2xl border border-gray-200 transition-all">
+                    <DialogTitle
+                      as="h3"
+                      className="text-xl font-semibold text-gray-800 mb-4"
+                    >
+                      {showModal ? "Tambah Ujian Baru" : "Edit Ujian"}
                     </DialogTitle>
 
-                    <div className="mt-4 space-y-4">
+                    <div className="space-y-4">
                       <div>
-                        <label htmlFor="userid" className="block text-sm font-medium">Judul</label>
+                        <label className="block text-sm font-medium text-gray-700">
+                          Judul Ujian
+                        </label>
                         <input
-                          id="title"
                           type="text"
                           name="title"
                           value={formData.title}
                           onChange={handleInputChange}
-                          className="mt-1 w-full border border-2 border-gray-300 px-3 py-2 rounded"
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-400 focus:outline-none"
                         />
                       </div>
 
-                      <div>
-                        <CustomDatePicker
-                          label="Tanggal Ujian"
-                          selectedDate={formData.date}
-                          onChange={handleDateChange}
-                        />
-                      </div>
+                      <CustomDatePicker
+                        label="Tanggal Ujian"
+                        selectedDate={formData.date}
+                        onChange={handleDateChange}
+                      />
 
                       <div>
-                        <label htmlFor='role' className="pb-1 block text-sm font-medium">Role</label>
-                        <div className='border border-2 border-gray-300 rounded'>
-                          <ExamTypeSelect 
+                        <label className="block text-sm font-medium text-gray-700">
+                          Jenis Ujian
+                        </label>
+                        <div className="border border-gray-300 rounded-lg">
+                          <ExamTypeSelect
                             type={formData.type}
-                            setType={(value) => setFormData(prev => ({ ...prev, type: value }))}
+                            setType={(value) =>
+                              setFormData((prev) => ({ ...prev, type: value }))
+                            }
                           />
                         </div>
                       </div>
 
-
                       <div>
-                        <label htmlFor='name' className="block text-sm font-medium">Durasi</label>
+                        <label className="block text-sm font-medium text-gray-700">
+                          Durasi (menit)
+                        </label>
                         <input
                           type="number"
                           name="duration"
                           value={formData.duration}
                           onChange={handleInputChange}
-                          className="mt-1 w-full border border-2 border-gray-300 px-3 py-2 rounded"
-                          min={0}
-                          step={5}
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-400 focus:outline-none"
                         />
                       </div>
 
                       <div>
-                        <label htmlFor='subject' className="pb-1 block text-sm font-medium">Mata Pelajaran</label>
-                        <div className='border border-2 border-gray-300 rounded'>
+                        <label className="block text-sm font-medium text-gray-700">
+                          Mata Pelajaran
+                        </label>
+                        <div className="border border-gray-300 rounded-lg">
                           <SubjectSelect
                             subject={formData.subject_id}
-                            setSubject={(value) => setFormData(prev => ({ ...prev, subject_id: value }))}
+                            setSubject={(value) =>
+                              setFormData((prev) => ({
+                                ...prev,
+                                subject_id: value,
+                              }))
+                            }
                           />
                         </div>
                       </div>
                     </div>
 
-                    <div className="mt-6 flex justify-end space-x-2">
+                    <div className="mt-6 flex justify-end space-x-3">
                       <button
-                        onClick={() => setShowModal(false)}
-                        className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400"
+                        onClick={() => {
+                          setShowModal(false);
+                          setEditModalOpen(false);
+                        }}
+                        className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg"
                       >
-                        Cancel
+                        Batal
                       </button>
                       <button
-                        onClick={handleSubmit}
-                        className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                        onClick={showModal ? handleSubmit : handleUpdate}
+                        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg"
                       >
-                        Save
+                        {showModal ? "Simpan" : "Perbarui"}
                       </button>
                     </div>
                   </DialogPanel>
@@ -358,148 +342,9 @@ const Exams = () => {
             </div>
           </Dialog>
         </Transition>
-
-        <Transition appear show={editModalOpen} as={Fragment}>
-          <Dialog as="div" className="relative z-10" onClose={() => setEditModalOpen(false)}>
-            <TransitionChild
-              as={Fragment}
-              enter="ease-out duration-300"
-              enterFrom="opacity-0"
-              enterTo="opacity-100"
-              leave="ease-in duration-200"
-              leaveFrom="opacity-100"
-              leaveTo="opacity-0"
-            >
-              <div className="fixed inset-0 bg-[rgba(0,0,0,0.3)] backdrop-blur-sm" />
-            </TransitionChild>
-
-            <div className="fixed inset-0 overflow-y-auto">
-              <div className="flex min-h-full items-center justify-center p-4 text-center">
-                <TransitionChild
-                  as={Fragment}
-                  enter="ease-out duration-300"
-                  enterFrom="opacity-0 scale-95"
-                  enterTo="opacity-100 scale-100"
-                  leave="ease-in duration-200"
-                  leaveFrom="opacity-100 scale-100"
-                  leaveTo="opacity-0 scale-95"
-                >
-                  <DialogPanel className="w-full max-w-md transform overflow-visible rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
-                    <DialogTitle as="h3" className="text-lg font-medium leading-6 text-gray-900">
-                      Edit Ujian
-                    </DialogTitle>
-
-                    <div className="mt-4 space-y-4">
-                      <div>
-                        <label htmlFor="userid" className="block text-sm font-medium">Judul</label>
-                        <input
-                          id="title"
-                          type="text"
-                          name="title"
-                          value={formData.title}
-                          onChange={handleInputChange}
-                          className="mt-1 w-full border border-2 border-gray-300 px-3 py-2 rounded"
-                        />
-                      </div>
-
-                      <div>
-                        <CustomDatePicker
-                          label="Tanggal Ujian"
-                          selectedDate={formData.date}
-                          onChange={handleDateChange}
-                        />
-                      </div>
-
-                      <div>
-                        <label htmlFor='role' className="pb-1 block text-sm font-medium">Role</label>
-                        <div className='border border-2 border-gray-300 rounded'>
-                          <ExamTypeSelect 
-                            type={formData.type}
-                            setType={(value) => setFormData(prev => ({ ...prev, type: value }))}
-                          />
-                        </div>
-                      </div>
-
-                      <div>
-                        <label htmlFor='name' className="block text-sm font-medium">Durasi</label>
-                        <input
-                          type="number"
-                          name="duration"
-                          value={formData.duration}
-                          onChange={handleInputChange}
-                          className="mt-1 w-full border border-2 border-gray-300 px-3 py-2 rounded"
-                          min={0}
-                          step={5}
-                        />
-                      </div>
-
-                      <div>
-                        <label htmlFor='subject' className="pb-1 block text-sm font-medium">Mata Pelajaran</label>
-                        <div className='border border-2 border-gray-300 rounded'>
-                          <SubjectSelect
-                            subject={formData.subject_id}
-                            setSubject={(value) => setFormData(prev => ({ ...prev, subject_id: value }))}
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="mt-6 flex justify-end space-x-2">
-                      <button
-                        onClick={() => setEditModalOpen(false)}
-                        className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        onClick={handleUpdate}
-                        className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-                      >
-                        Update
-                      </button>
-                    </div>
-                  </DialogPanel>
-                </TransitionChild>
-              </div>
-            </div>
-          </Dialog>
-        </Transition>
-
-
-        <SearchBar value={search}/>
-
-        {loading ? (
-          <p className="mt-4">Loading...</p>
-        ) : (
-          <>
-            <ExamTable
-              data={exams}
-              onRefresh={fetchExams}
-              searchParams={searchParams}
-              setSearchParams={setSearchParams}
-              onEdit={handleEdit}
-            />
-            <div className="flex items-center justify-between mt-4">
-              <div className="text-sm text-gray-600">
-                {meta.total > 0 && (
-                  <span>
-                    Showing <strong>{(page - 1) * pageSize + 1}</strong> to{' '}
-                    <strong>{Math.min(page * pageSize, meta.total)}</strong> of <strong>{meta.total}</strong> entries
-                  </span>
-                )}
-              </div>
-              <Pagination
-                current={page}
-                total={meta.total}
-                pageSize={pageSize}
-                onPageChange={(p) => setPage(p)}
-              />
-            </div>
-          </>
-        )}
       </div>
     </Sidebar>
   );
 };
 
-export default Exams;
+export default Exam;

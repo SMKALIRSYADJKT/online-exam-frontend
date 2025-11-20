@@ -29,54 +29,53 @@ const SubmittedExamTable = ({ data, searchParams, setSearchParams }) => {
   };
 
   return (
-    <div className="mt-4">
-      <table className="table-auto w-full min-w-full bg-white border border-gray-200 rounded shadow text-sm text-gray-500 border-separate border-spacing-0">
-        <thead className="bg-gray-100">
-          <tr>
-            <th className="px-4 py-2 text-center">No</th>
+    <div className="mt-4 bg-white rounded-2xl shadow-md border border-gray-100 overflow-x-auto">
+      <table className="min-w-full text-sm text-gray-700 border-separate border-spacing-0">
+        <thead className="bg-gradient-to-r from-emerald-50 to-teal-100 text-gray-700">
+          <tr className="text-sm font-semibold">
+            <th className="px-4 py-3 text-center border-b">No</th>
             <th
-              className="px-4 py-2 text-center cursor-pointer"
+              className="px-4 py-3 text-center cursor-pointer border-b hover:text-emerald-700"
               onClick={() => handleSort("exam.title")}
             >
-              Exam Title{renderSortIndicator("exam.title")}
+              Judul Ujian {renderSortIndicator("exam.title")}
             </th>
             <th
-              className="px-4 py-2 text-center cursor-pointer"
+              className="px-4 py-3 text-center cursor-pointer border-b hover:text-emerald-700"
               onClick={() => handleSort("exam.subject")}
             >
-              Subject{renderSortIndicator("exam.subject")}
+              Mata Pelajaran {renderSortIndicator("exam.subject")}
             </th>
             <th
-              className="px-4 py-2 text-center cursor-pointer"
+              className="px-4 py-3 text-center cursor-pointer border-b hover:text-emerald-700"
               onClick={() => handleSort("created_at")}
             >
-              Submitted At{renderSortIndicator("created_at")}
+              Tanggal Submit {renderSortIndicator("created_at")}
             </th>
-            <th className="px-4 py-2 text-center">Score</th>
-            <th className="px-4 py-2 text-center">Actions</th>
+            <th className="px-4 py-3 text-center border-b">Score</th>
+            <th className="px-4 py-3 text-center border-b">Aksi</th>
           </tr>
         </thead>
         <tbody>
           {Array.isArray(data) && data.length > 0 ? (
             data.map((submission, index) => (
-              <tr key={submission.id}>
-                <td className="px-4 py-2 border border-gray-200 text-center">
-                  {index + 1}
+              <tr
+                key={submission.id}
+                className="hover:bg-emerald-50 transition-all duration-150 border-b last:border-none"
+              >
+                <td className="px-4 py-3 text-center">{index + 1}</td>
+                <td className="px-4 py-3">{submission.exam?.title || "-"}</td>
+                <td className="px-4 py-3 text-center">
+                  {submission.exam?.subject?.name || "-"}
                 </td>
-                <td className="px-4 py-2 border border-gray-200">
-                  {submission.exam?.title || "-"}
-                </td>
-                <td className="px-4 py-2 border border-gray-200 text-center">
-                  {submission.exam?.subjects?.name || "-"}
-                </td>
-                <td className="px-4 py-2 border border-gray-200 text-center">
+                <td className="px-4 py-3 text-center">
                   {formatDateOnly(submission.created_at)}
                 </td>
-                <td className="px-4 py-2 border border-gray-200 text-center">
+                <td className="px-4 py-3 text-center">
                   {submission.score ?? "-"}
                 </td>
-                <td className="px-4 py-2 border border-gray-200 text-center">
-									<ActionMenu itemId={submission.id} menu={"submittedExam"} />
+                <td className="px-4 py-3 text-center">
+                  <ActionMenu itemId={submission.id} menu={"submittedExam"} />
                 </td>
               </tr>
             ))
@@ -84,7 +83,7 @@ const SubmittedExamTable = ({ data, searchParams, setSearchParams }) => {
             <tr>
               <td
                 colSpan="6"
-                className="px-4 py-2 text-center text-gray-500"
+                className="px-4 py-6 text-center text-gray-500 italic"
               >
                 Belum ada ujian yang disubmit
               </td>

@@ -6,7 +6,8 @@ import SearchBar from "../components/Users/SearchBar";
 import Pagination from "../components/Paginate";
 import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
-import SubmittedExamTable from "../components/Exams/SubmittedExamTable"; // buat tabel khusus hasil ujian siswa
+import SubmittedExamTable from "../components/Exams/SubmittedExamTable";
+import { FaClipboardList } from "react-icons/fa";
 
 const MySwal = withReactContent(Swal);
 
@@ -25,34 +26,22 @@ const SubmittedExams = () => {
   const fetchSubmissions = async () => {
     setLoading(true);
     try {
-      const res = await axios.get(
-        "http://localhost:3000/api/exam-submissions/me",
-        {
-          params: { search, sort, order, page, limit: pageSize },
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
-      );
-
-      const submissionList = Array.isArray(res.data?.data)
-        ? res.data.data
-        : [];
-      const metaInfo = res.data?.meta || { total: 0 };
-
-      setSubmissions(submissionList);
-      setMeta(metaInfo);
+      const res = await axios.get("http://localhost:3000/api/exam-submissions/me", {
+        params: { search, sort, order, page, limit: pageSize },
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+      });
+      setSubmissions(Array.isArray(res.data?.data) ? res.data.data : []);
+      setMeta(res.data?.meta || { total: 0 });
     } catch (err) {
+      console.error("Failed to fetch submissions:", err);
       MySwal.fire({
         title: "Error",
         text: "Gagal mengambil data hasil ujian.",
         icon: "error",
         confirmButtonText: "OK",
       });
-      setSearchParams({ search: "", sort: "created_at", order: "desc", page: "1" });
       setSubmissions([]);
       setMeta({ total: 0 });
-      console.error("Failed to fetch exam submissions:", err);
     } finally {
       setLoading(false);
     }
@@ -64,44 +53,62 @@ const SubmittedExams = () => {
 
   return (
     <Sidebar>
-      <div className="p-6 min-h-screen bg-white rounded shadow max-w-screen-xl mx-auto overflow-hidden">
-        <h3 className="font-bold mb-4">Hasil Ujian</h3>
+      <div className="p-8 bg-gray-50 min-h-screen rounded-2xl shadow-inner">
+        {/* Header */}
+        <div className="flex items-center gap-3 mb-6">
+          <div className="p-3 bg-emerald-100 text-emerald-600 rounded-xl shadow-sm">
+            <FaClipboardList className="text-3xl" />
+          </div>
+          <h3 className="text-2xl font-bold text-gray-800">Hasil Ujian</h3>
+        </div>
 
-        {/* 🔍 Search Bar */}
-        <SearchBar value={search} />
+        {/* === Table Section === */}
+        <div className="mt-6 bg-white rounded-2xl shadow-md border border-gray-100 p-4 overflow-x-auto">
+          <SearchBar value={search} />
 
-        {loading ? (
-          <p className="mt-4">Loading...</p>
-        ) : (
-          <>
-            <SubmittedExamTable
-              data={submissions}
-              searchParams={searchParams}
-              setSearchParams={setSearchParams}
-              onRefresh={fetchSubmissions}
-            />
-
-            <div className="flex items-center justify-between mt-4">
-              <div className="text-sm text-gray-600">
-                {meta.total > 0 && (
-                  <span>
-                    Showing <strong>{(page - 1) * pageSize + 1}</strong> to{" "}
-                    <strong>{Math.min(page * pageSize, meta.total)}</strong> of{" "}
-                    <strong>{meta.total}</strong> entries
-                  </span>
-                )}
-              </div>
-              <Pagination
-                current={page}
-                total={meta.total}
-                pageSize={pageSize}
-                onPageChange={(p) =>
-                  setSearchParams({ search, sort, order, page: p.toString() })
-                }
-              />
+          {loading ? (
+            <div className="mt-6 animate-pulse space-y-3">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="h-6 bg-gray-200 rounded"></div>
+              ))}
             </div>
-          </>
-        )}
+          ) : submissions.length === 0 ? (
+            <div className="text-center text-gray-600 py-10">
+              Tidak ada data ujian yang ditemukan.
+            </div>
+          ) : (
+            <>
+              <div className="overflow-x-auto rounded-xl border border-gray-200 shadow-sm">
+                <SubmittedExamTable
+                  data={submissions}
+                  searchParams={searchParams}
+                  setSearchParams={setSearchParams}
+                />
+              </div>
+
+              {/* Pagination */}
+              <div className="flex items-center justify-between mt-6">
+                <div className="text-sm text-gray-500">
+                  {meta.total > 0 && (
+                    <span>
+                      Menampilkan <strong>{(page - 1) * pageSize + 1}</strong> -{" "}
+                      <strong>{Math.min(page * pageSize, meta.total)}</strong> dari{" "}
+                      <strong>{meta.total}</strong> entri
+                    </span>
+                  )}
+                </div>
+                <Pagination
+                  current={page}
+                  total={meta.total}
+                  pageSize={pageSize}
+                  onPageChange={(p) =>
+                    setSearchParams({ search, sort, order, page: p.toString() })
+                  }
+                />
+              </div>
+            </>
+          )}
+        </div>
       </div>
     </Sidebar>
   );

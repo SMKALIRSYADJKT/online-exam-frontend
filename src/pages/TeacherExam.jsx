@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { FaClipboardList } from "react-icons/fa";
 import Sidebar from "../components/Sidebar";
 import axios from "axios";
 import SearchBar from "../components/Users/SearchBar";
@@ -7,6 +8,7 @@ import Pagination from "../components/Paginate";
 import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
 import TeacherExamTable from "../components/Exams/TeacherExamTable";
+import api from "../api/axiosConfig";
 
 const MySwal = withReactContent(Swal);
 
@@ -23,10 +25,11 @@ const TeacherExam = () => {
   const page = Number(searchParams.get("page")) || 1;
   const pageSize = 10;
 
+  // === Fetch Exams Data ===
   const fetchExams = async () => {
     setLoading(true);
     try {
-      const res = await axios.get("http://localhost:3000/api/teacher-exams", {
+      const res = await api.get("/teacher-exams", {
         params: { search, sort, order, page, limit: pageSize },
         headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
       });
@@ -61,44 +64,66 @@ const TeacherExam = () => {
 
   return (
     <Sidebar>
-      <div className="p-6 min-h-screen bg-white rounded shadow max-w-screen-xl mx-auto overflow-hidden">
-        <h3 className="font-bold mb-4 text-lg">Daftar Ujian yang Dikerjakan Siswa</h3>
+      <div className="p-8 bg-gray-50 min-h-screen rounded-2xl shadow-inner">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <div className="p-3 bg-emerald-100 text-emerald-600 rounded-xl shadow-sm">
+              <FaClipboardList className="text-2xl" />
+            </div>
+            <h3 className="text-2xl font-semibold text-gray-800">
+              Daftar Ujian yang Dikerjakan Siswa
+            </h3>
+          </div>
+        </div>
 
-        {/* 🔍 Search Bar */}
-        <SearchBar value={search} />
+        {/* === Table Section === */}
+        <div className="mt-6 bg-white rounded-2xl shadow-md border border-gray-100 p-4 overflow-x-auto">
+          <SearchBar value={search} />
 
-        {loading ? (
-          <p className="mt-4">Loading...</p>
-        ) : (
-          <>
-            <TeacherExamTable
-              data={exams}
-              searchParams={searchParams}
-              setSearchParams={setSearchParams}
-              onViewStudents={handleViewStudents}
-            />
+          {loading ? (
+            <div className="mt-6 animate-pulse space-y-3">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="h-6 bg-gray-200 rounded"></div>
+              ))}
+            </div>
+          ) : exams.length === 0 ? (
+            <div className="text-center text-gray-600 py-10">
+              Tidak ada data ujian yang ditemukan.
+            </div>
+          ) : (
+            <>
+              <div className="overflow-x-auto rounded-xl border border-gray-200">
+                <TeacherExamTable
+                  data={exams}
+                  searchParams={searchParams}
+                  setSearchParams={setSearchParams}
+                  onViewStudents={handleViewStudents}
+                />
+              </div>
 
-            <div className="flex items-center justify-between mt-4">
-              <div className="text-sm text-gray-600">
+              {/* 📄 Pagination Info */}
+              <div className="flex flex-col sm:flex-row items-center justify-between mt-6 gap-3 text-sm text-gray-600">
                 {meta.total > 0 && (
                   <span>
-                    Showing <strong>{(page - 1) * pageSize + 1}</strong> to{" "}
-                    <strong>{Math.min(page * pageSize, meta.total)}</strong> of{" "}
-                    <strong>{meta.total}</strong> entries
+                    Menampilkan{" "}
+                    <strong>{(page - 1) * pageSize + 1}</strong> hingga{" "}
+                    <strong>{Math.min(page * pageSize, meta.total)}</strong> dari{" "}
+                    <strong>{meta.total}</strong> entri
                   </span>
                 )}
+                <Pagination
+                  current={page}
+                  total={meta.total}
+                  pageSize={pageSize}
+                  onPageChange={(p) =>
+                    setSearchParams({ search, sort, order, page: p.toString() })
+                  }
+                />
               </div>
-              <Pagination
-                current={page}
-                total={meta.total}
-                pageSize={pageSize}
-                onPageChange={(p) =>
-                  setSearchParams({ search, sort, order, page: p.toString() })
-                }
-              />
-            </div>
-          </>
-        )}
+            </>
+          )}
+        </div>
       </div>
     </Sidebar>
   );

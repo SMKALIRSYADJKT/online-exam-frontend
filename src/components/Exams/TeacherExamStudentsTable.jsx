@@ -25,9 +25,9 @@ const TeacherExamStudentsTable = ({ data, searchParams, setSearchParams }) => {
   const renderSortIndicator = (key) => {
     if (sort !== key) return <HiSelector className="inline text-gray-400 ml-1" />;
     return order === "asc" ? (
-      <HiChevronUp className="inline text-blue-500 ml-1" />
+      <HiChevronUp className="inline text-emerald-500 ml-1" />
     ) : (
-      <HiChevronDown className="inline text-blue-500 ml-1" />
+      <HiChevronDown className="inline text-emerald-500 ml-1" />
     );
   };
 
@@ -36,58 +36,71 @@ const TeacherExamStudentsTable = ({ data, searchParams, setSearchParams }) => {
   };
 
   return (
-    <div className="mt-4">
-      <table className="table-auto w-full min-w-full bg-white border border-gray-200 rounded shadow text-sm text-gray-500 border-separate border-spacing-0">
-        <thead className="bg-gray-100">
+    <div className="font-poppins">
+      <table className="w-full border border-gray-200 rounded-xl overflow-hidden text-sm text-gray-700">
+        <thead className="bg-emerald-50 text-emerald-700 uppercase text-xs font-semibold tracking-wider">
           <tr>
-            <th className="px-4 py-2 text-center">No</th>
+            <th className="px-4 py-3 text-center">No</th>
             <th
-              className="px-4 py-2 text-center cursor-pointer"
+              className="px-4 py-3 text-center cursor-pointer hover:text-emerald-700 select-none"
+              onClick={() => handleSort("userid")}
+            >
+              NIS {renderSortIndicator("userid")}
+            </th>
+            <th
+              className="px-4 py-3 text-center cursor-pointer hover:text-emerald-700 select-none"
               onClick={() => handleSort("student_name")}
             >
-              Student {renderSortIndicator("student_name")}
+              Siswa {renderSortIndicator("student_name")}
             </th>
             <th
-              className="px-4 py-2 text-center cursor-pointer"
+              className="px-4 py-3 text-center cursor-pointer hover:text-emerald-700 select-none"
               onClick={() => handleSort("submitted_at")}
             >
-              Submitted At {renderSortIndicator("submitted_at")}
+              Tanggal Submit {renderSortIndicator("submitted_at")}
             </th>
-            <th className="px-4 py-2 text-center">Score</th>
-            <th className="px-4 py-2 text-center">Actions</th>
+            <th className="px-4 py-3 text-center">Nilai</th>
+            <th className="px-4 py-3 text-center">Aksi</th>
           </tr>
         </thead>
         <tbody>
           {Array.isArray(data) && data.length > 0 ? (
             data.map((submission, index) => (
-              <tr key={submission.id}>
-                <td className="px-4 py-2 border border-gray-200 text-center">
-                  {index + 1}
+              <tr
+                key={submission.id}
+                className="hover:bg-emerald-50 transition-colors duration-200"
+              >
+                <td className="px-4 py-3 border-t text-center">{index + 1}</td>
+                <td className="px-4 py-3 border-t text-center">
+                  {submission.student?.userid || "-"}
                 </td>
-                <td className="px-4 py-2 border border-gray-200 text-center">
-                  {submission.users?.name || "-"}
+                <td className="px-4 py-3 border-t">
+                  {submission.student?.name || "-"}
                 </td>
-                <td className="px-4 py-2 border border-gray-200 text-center">
+                <td className="px-4 py-3 border-t text-center">
                   {formatDateOnly(submission.created_at)}
                 </td>
-                <td className="px-4 py-2 border border-gray-200 text-center">
-                  {submission.score != null ? (() => {
-                    let color = "text-green-500";
-                    if (submission.score < 50) {
-                      color = "text-red-500";
-                    } else if (submission.score < 75) {
-                      color = "text-yellow-500";
-                    }
-                    return <span className={`${color} font-semibold`}>{submission.score}</span>;
-                  })()
-                  :
-                  ("-")
-                  }
+                <td className="px-4 py-3 border-t text-center">
+                  {submission.score != null ? (
+                    (() => {
+                      let color = "text-green-600";
+                      if (submission.score < 50) color = "text-red-500";
+                      else if (submission.score < 75) color = "text-yellow-500";
+                      return (
+                        <span className={`${color} font-semibold`}>
+                          {submission.score}
+                        </span>
+                      );
+                    })()
+                  ) : (
+                    <span className="text-gray-400 italic">-</span>
+                  )}
                 </td>
-                <td className="px-4 py-2 border border-gray-200 text-center">
+                <td className="px-4 py-3 border-t text-center">
                   <ActionMenu
                     itemId={submission.id}
                     menu="teacherExamSubmission"
+                    onGrade={() => handleGrade(submission.id)}
                   />
                 </td>
               </tr>
@@ -96,7 +109,7 @@ const TeacherExamStudentsTable = ({ data, searchParams, setSearchParams }) => {
             <tr>
               <td
                 colSpan="5"
-                className="px-4 py-2 text-center text-gray-500"
+                className="px-4 py-6 text-center text-gray-500 italic"
               >
                 Belum ada siswa yang mengerjakan ujian ini
               </td>

@@ -1,7 +1,7 @@
 export const roleMenus: Record<string, string[]> = {
   SISWA: ['dashboard', 'ujian', 'exam_submissions'],
   GURU: ['dashboard', 'exam', 'subject', 'teacher_exam'],
-  ADMIN: ['dashboard', 'exam', 'subject', 'user_management', 'laporan', 'exam_submissions', 'teacher_exam'],
+  ADMIN: ['dashboard', 'exam', 'subject', 'user_management', 'teacher_exam'],
 };
 
 export const menus = [
@@ -19,15 +19,15 @@ export const menus = [
   },
   {
     name: 'exam',
-    title: 'Soal Ujian',
+    title: 'Daftar Ujian Sekolah',
     icon: 'FaQuestionCircle',
     path: '/exam',
   },
   {
     name: 'exam_submissions',
-    title: 'Hasil Ujian',
+    title: 'Hasil Ujian Siswa',
     icon: 'FaFileAlt',
-    path: '/student/exam-submissions',
+    path: '/exam-submissions',
   },
   {
     name: 'teacher_exam',
@@ -43,7 +43,7 @@ export const menus = [
   },
   {
     name: 'user_management',
-    title: 'User Management',
+    title: 'Pengelolaan Pengguna',
     icon: 'FaUsers',
     path: '/user-management',
   },
